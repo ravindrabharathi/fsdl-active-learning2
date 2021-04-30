@@ -127,3 +127,12 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# MacOS system files
+.DS_Store
+
+# Training logs
+training/logs
+
+#deepcode cache
+.dccache
