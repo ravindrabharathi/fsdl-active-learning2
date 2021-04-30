@@ -1,0 +1,3 @@
+filename = 'dw_data.zip'
+sha256 = 'e6ad6a0a203aa7813245a713f1d156f1a8c2f8747bc9438be387144440fc3e1e'
+url = 'https://storage.googleapis.com/wandb_datasets/dw_train_86K_val_10K.zip'
