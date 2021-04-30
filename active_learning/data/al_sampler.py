@@ -4,8 +4,12 @@ import torch
 def get_random_samples(pool_size,sample_size):
     
     #return sample size of random indices 
-    
-    return np.random.randint(pool_size, size=sample_size)
+    if pool_size<=2000:
+        indices=[x for x in range(pool_size)]  #return complete pool size 
+    else:
+        indices=np.random.randint(pool_size, size=sample_size)
+
+    return indices
 
 def get_least_confidence_samples(predictions, sample_size):
 
@@ -59,7 +63,7 @@ def get_top2_confidence_ratio_samples(predictions, sample_size):
     return confidence_ratio_indices 
 
 def get_entropy_samples(predictions,sample_size):
-    scores = []
+    entropies = []
     indices = []
     for idx,predxn in enumerate(predictions):
         log2p=np.log2(predxn)
