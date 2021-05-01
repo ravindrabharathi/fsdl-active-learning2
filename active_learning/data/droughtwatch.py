@@ -14,13 +14,12 @@ from active_learning.data.base_data_module import _download_raw_dataset, BaseDat
 from active_learning.data.util import BaseDataset
 
 import tensorflow as tf
-import random
 import numpy as np
 
 IMG_DIM = 65
 NUM_CLASSES = 4
-N_TRAIN = 22000 #approx 25% of available training samples
-N_VAL = 10778
+N_TRAIN = 22000 # approx 25% of available training samples
+N_VAL = 10778 # full available validation set
 BANDS = ['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B9', 'B10', 'B11']
 
 RAW_DATA_DIRNAME = BaseDataModule.data_dirname() / "raw" / "droughtwatch"
@@ -52,8 +51,7 @@ class DroughtWatch(BaseDataModule):
         self.n_validation_images = self.args.get("n_validation_images", N_VAL)
         self.bands = self.args.get("--bands", ",".join(BANDS)).split(",")
 
-        if not (os.path.exists(PROCESSED_DATA_FILE_TRAINVAL) and os.path.exists(PROCESSED_DATA_FILE_POOL)):
-            _download_and_process_droughtwatch(self)
+        _check_disk_dataset_availability(self)
 
         self.mapping = list(range(NUM_CLASSES))
         self.transform = transforms.Compose([transforms.ToTensor()])
@@ -63,9 +61,8 @@ class DroughtWatch(BaseDataModule):
         self.init_setup()
 
     def prepare_data(self, *args, **kwargs) -> None:
-        if not (os.path.exists(PROCESSED_DATA_FILE_TRAINVAL) and os.path.exists(PROCESSED_DATA_FILE_POOL)):
-            _download_and_process_droughtwatch(self)
-
+        _check_disk_dataset_availability(self)
+    
     def init_setup(self):
         print("INIT SETUP DATA CALLED  \n-------------\n")    
         with h5py.File(PROCESSED_DATA_FILE_TRAINVAL, "r") as f:
@@ -76,11 +73,6 @@ class DroughtWatch(BaseDataModule):
 
         self.data_train = BaseDataset(self.x_train, self.y_train, transform=self.transform)
         self.data_val = BaseDataset(self.x_val, self.y_val, transform=self.transform)
-        #self.data_test = self.data_val # NOTE: the framework requires a test set, we just set it to the same as the validation set though
-    
-        # pool of labeled samples from which to choose from via active learning
-        # TODO: do something with this pool
-        # NOTE: we might have to change how the pool is stored and read, otherwise Colab's memory is close to its' limit...
 
         with h5py.File(PROCESSED_DATA_FILE_POOL, "r") as f:
             self.x_pool = f["x_pool"][:]
@@ -105,7 +97,7 @@ class DroughtWatch(BaseDataModule):
         if self.data_train is None and self.data_val is None and self.data_test is None and self.data_unlabelled is None:
             return basic
 
-        # deepcode ignore unguarded~next~call: <please specify a reason of ignoring this>
+        # deepcode ignore unguarded~next~call: call to just initialized train_dataloader always returns data
         x, y = next(iter(self.train_dataloader()))
         data = (
             f"Train/val sizes: {len(self.data_train)}, {len(self.data_val)}\n"
@@ -161,9 +153,23 @@ class DroughtWatch(BaseDataModule):
         self.data_unlabelled=BaseDataset(self.x_pool, self.y_pool, transform=self.transform)
         print(' New train set size ',len(self.x_train))
         print('New unlabelled pool size ',len(self.x_pool))
-        
 
-             
+
+
+def _check_disk_dataset_availability(self):
+
+    if not (os.path.exists(PROCESSED_DATA_FILE_TRAINVAL) and os.path.exists(PROCESSED_DATA_FILE_POOL)):
+        print("Processed DroughtWatch dataset not yet available on disk, initiating download/processing")
+        _download_and_process_droughtwatch(self)
+
+    else:
+        with h5py.File(PROCESSED_DATA_FILE_TRAINVAL, "r") as f:
+            n_train_samples = len(f["y_train"][:].squeeze())
+            n_val_samples = len(f["y_val"][:].squeeze())
+
+        if not (n_train_samples == self.n_train_images and n_val_samples == self.n_validation_images):
+            print("Processed DroughtWatch dataset on disk does not have correct size, initiating reprocessing")
+            _download_and_process_droughtwatch(self)
 
 def _download_and_process_droughtwatch(self):
 
@@ -189,7 +195,6 @@ def _load_data(data_path):
 
 
 def _parse_tfrecords(self, filelist, buffer_size, include_viz=False):
-
 
     # tf record parsing function
     def _parse_(serialized_example, keylist=self.bands):
@@ -221,21 +226,17 @@ def _parse_tfrecords(self, filelist, buffer_size, include_viz=False):
         image = tf.concat(bandlist, -1)
         label = tf.cast(example['label'], tf.int32) # NOTE: no one-hot encoding for PyTorch optimizer! (different than in TensorFlow)
     
-        # if logging RGB images as examples, generate RGB image from 11-channel satellite image
-        if include_viz:
-            image = get_img_from_example(example)
-            return {'image' : image, 'label': example['label']}, label
         return {'image': image}, label
     
     # create tf dataset from filelist
     tfrecord_dataset = tf.data.TFRecordDataset(filelist)
 
-    # convert the dataset to a dataset of given size
-    tfrecord_dataset = tfrecord_dataset.map(lambda x:_parse_(x)).batch(buffer_size) #.shuffle(buffer_size).repeat(-1).batch(buffer_size)
+    # convert, shuffle and batch the dataset
+    tfrecord_dataset = tfrecord_dataset.map(lambda x:_parse_(x)).shuffle(90000, seed=42).batch(buffer_size)
     tfrecord_iterator = iter(tfrecord_dataset)
-    #image, label = tfrecord_iterator.get_next()
-    #return image, label
+
     return tfrecord_iterator
+
 
 def _process_raw_dataset(self, filename: str, dirname: Path):
 
@@ -244,8 +245,8 @@ def _process_raw_dataset(self, filename: str, dirname: Path):
     os.chdir(dirname)
 
     if not os.path.exists(DL_DATA_DIRNAME / "droughtwatch_data"):
-        zip_file = zipfile.ZipFile(filename, "r")
-        zip_file.extractall()
+        with zipfile.ZipFile(filename, "r") as zip_file:
+            zip_file.extractall()
 
     print("Loading train/validation datasets as TF tensor")
     train_tfrecords, val_tfrecords = _load_data(DL_DATA_DIRNAME / "droughtwatch_data")
@@ -291,12 +292,10 @@ def _process_raw_dataset(self, filename: str, dirname: Path):
             hf["y_pool"].resize((hf["y_pool"].shape[0] + y_pool.shape[0]), axis = 0)
             hf["y_pool"][-y_pool.shape[0]:] = y_pool
 
-    #print(PROCESSED_DATA_FILE_POOL)
-    #print(PROCESSED_DATA_FILE_TRAINVAL,PROCESSED_DATA_DIRNAME)
+
     print("Cleaning up...")
     shutil.rmtree("droughtwatch_data")
     os.chdir(curdir)
-
           
 
 if __name__ == "__main__":
