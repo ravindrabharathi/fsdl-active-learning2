@@ -86,7 +86,7 @@ class BaseLitModel(pl.LightningModule):  # pylint: disable=too-many-ancestors
         self.log("train_loss", loss,on_step=False, on_epoch=True,prog_bar=False)
         self.train_acc(logits, y)
         self.log("train_acc", self.train_acc, on_step=False, on_epoch=True, prog_bar=False)
-        #self.log("train_size", len(self.trainer.data.get_ds_length('train')), on_step=False, on_epoch=True, prog_bar=False)
+        self.log("train_size", self.trainer.datamodule.get_ds_length('train'), on_step=False, on_epoch=True, prog_bar=False)
         return loss
 
     def validation_step(self, batch, batch_idx):  # pylint: disable=unused-argument
