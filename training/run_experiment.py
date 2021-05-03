@@ -134,7 +134,7 @@ def main():
         # pool_size is the size of the unlabelled pool size data.get_ds_length('unlabelled')
         
         if unlabelled_data_size>2000:
-            sample_size=int(0.25 * unlabelled_data_size)
+            sample_size=2000 # take 2000 extra samples at a time #int(0.25 * unlabelled_data_size)
         else:
             sample_size=unlabelled_data_size    
         print('Total Unlabelled Pool Size ', unlabelled_data_size)
