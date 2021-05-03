@@ -9,6 +9,14 @@ Comparing different active learning strategies for image classification (FSDL co
     - [ResNet Image Classifier](#resnet-image-classifier)
     - [modAL Active Learning Experiment Running Framework](#modal-active-learning-experiment-running-framework)
       - [modAL Sampling Strategy Extensions](#modal-sampling-strategy-extensions)
+        - [Bayesian Uncertainty Sampling](#bayesian-uncertainty-sampling)
+          - [bald](#bald)
+          - [max_entropy](#max_entropy)
+        - [Diversity Sampling](#diversity-sampling)
+          - [outlier](#outlier)
+          - [cluster_outlier_combined](#cluster_outlier_combined)
+        - [Baseline](#baseline)
+          - [random](#random)
   - [Quickstart](#quickstart)
     - [Local](#local)
     - [Google Colab](#google-colab)
@@ -33,6 +41,50 @@ This repository builds upon the template of **lab 08** of the [Full Stack Deep L
 
 The model can be used for transfer learning on the drought prediction data.
 
+### modAL Active Learning Experiment Running Framework
+
+[training/run_modAL_experiment.py](./training/run_modAL_experiment.py): Script to run experiments for model training with different active learning strategies which are implemented via the [modAL library](https://github.com/modAL-python/modAL).
+
+#### modAL Sampling Strategy Extensions
+
+[active_learning/sampling/modal_extensions.py](./active_learning/sampling/modal_extensions.py): Implementation of different sampling strategies for active learning via [modAL library](https://github.com/modAL-python/modAL).
+
+Note that the strategies `bald` and `max_entropy` only make sense when there is a `dropout` layer in the network.
+
+##### Bayesian Uncertainty Sampling
+
+###### bald
+
+Active learning sampling technique that maximizes the information gain via maximising mutual information between predictions and model posterior (Bayesian Active Learning by Disagreement - BALD) as depicted in the papers [Deep Bayesian Active Learning with Image Data](https://arxiv.org/pdf/1703.02910.pdf) and [Bayesian Active Learning for Classification and Preference Learning](https://arxiv.org/pdf/1112.5745.pdf).
+
+###### max_entropy
+
+Active learning sampling technique that maximizes the predictive entropy based on the paper [Deep Bayesian Active Learning with Image Data](https://arxiv.org/pdf/1703.02910.pdf).
+
+##### Diversity Sampling
+
+###### outlier
+
+Self-developed outlier sampling technique:
+
+1. Translates instances from the pool to features by tapping into an intermediate layer of the adapted ResNet model
+2. Performs clustering via HDBSCAN and assigns an outlier score to each instance via GLOSH
+3. Samples instances with highest outlier scores
+
+###### cluster_outlier_combined
+
+Self-developed diversity sampling technique that combines clustering and outliers:
+
+1. Translates instances from the pool to features by tapping into an intermediate layer of the adapted ResNet model
+2. Performs clustering via HDBSCAN and additionally assigns an outlier score to each instance via GLOSH
+3. Samples instances evenly from all clusters, and takes both outlier and non-outlier points by considering the outlier score
+
+##### Baseline
+
+###### random
+
+Baseline active learning sampling technique that takes random instances from available pool.
+
 ## Quickstart
 
 ### Local
@@ -47,6 +99,9 @@ make pip-tools # installs required pip packages inside the conda env
 
 # regular experiment, training a drought watch classifier via pytorch lightning
 python training/run_experiment.py --max_epochs=1 --num_workers=4 --data_class=DroughtWatch --model_class=ResnetClassifier
+
+# active learning experiment with modAL
+python training/run_modaL_experiment.py --al_epochs_init=10 --al_epochs_incr=10 --al_n_iter=20 --al_samples_per_iter=2000 --al_incr_onlynew=False --al_query_strategy=bald --data_class=DroughtWatch --model_class=ResnetClassifier --batch_size=64 --n_train_images=20000 --n_validation_images=10778  --pretrained=True --wandb
 ```
 
 ### Google Colab
