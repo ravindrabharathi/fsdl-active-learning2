@@ -134,5 +134,15 @@ dmypy.json
 # Training logs
 training/logs
 
+# Local VS Code settings
+.vscode
+
+# Local wandb runs
+wandb/
+
 #deepcode cache
 .dccache
+
+# Data files downloaded by library
+data/downloaded
+data/processed
