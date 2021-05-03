@@ -11,6 +11,8 @@ NUM_CHANNELS = 11
 DROPOUT = False
 DROPUT_PROB = 0.5
 DROPOUT_HIDDEN_DIM = 512
+BINARY = False
+RGB = False
 
 class ResnetClassifier(nn.Module):
     """Classify an image of arbitrary size through a (pretrained) ResNet network"""
@@ -23,6 +25,16 @@ class ResnetClassifier(nn.Module):
         n_classes = self.args.get("n_classes", NUM_CLASSES)
         pretrained = self.args.get("pretrained", PRETRAINED)
         dropout = self.args.get("dropout", DROPOUT)
+        binary = self.args.get("binary", BINARY)
+        rgb = self.args.get("rgb", RGB)
+
+        # override values if binary or rgb are specified
+        if binary == True:
+            n_classes = 2
+            print("Overriding n_classes parameter, setting n_classes to 2")
+        if rgb == True:
+            n_channels = 3
+            print("Overriding n_channels parameter, setting n_channels to 3\n")
 
         # base ResNet model
         self.resnet = torchvision.models.resnet50(pretrained=pretrained)
@@ -31,13 +43,11 @@ class ResnetClassifier(nn.Module):
         new_channel_mean = 0.485 # from existing channel 0
         new_channel_std = 0.229 # from existing channel 0
         self.preprocess = tt.Compose([
-            tt.Resize(224),
-            tt.Normalize(
-              mean=[0.485, 0.456, 0.406, 
-                new_channel_mean, new_channel_mean, new_channel_mean, new_channel_mean, new_channel_mean, new_channel_mean, new_channel_mean, new_channel_mean], 
-              std=[0.229, 0.224, 0.225, 
-                new_channel_std, new_channel_std, new_channel_std, new_channel_std, new_channel_std, new_channel_std, new_channel_std, new_channel_std]),
-        ])
+                    tt.Resize(224),
+                    tt.Normalize(
+                    mean=[0.485, 0.456, 0.406] + [new_channel_mean]*(n_channels-3), 
+                    std=[0.229, 0.224, 0.225] + [new_channel_std]*(n_channels-3))
+                ])
 
         # changing the architecture of the laster layers
         # if dropout is activated, add an additional fully connected layer with dropout before the last layer
@@ -57,29 +67,30 @@ class ResnetClassifier(nn.Module):
         else:
             self.resnet.fc = nn.Linear(self.resnet.fc.in_features, n_classes)
 
-        # adapting the no. of input channels to the first conv layer 
-        # (adapted from https://discuss.pytorch.org/t/how-to-modify-the-input-channels-of-a-resnet-model/2623/10)
-        existing_layer = self.resnet.conv1
+        if rgb == False:
+            print("Adapting first convolutional layer to additional channels\n")
+            # adapting the no. of input channels to the first conv layer 
+            # (adapted from https://discuss.pytorch.org/t/how-to-modify-the-input-channels-of-a-resnet-model/2623/10)
+            existing_layer = self.resnet.conv1
 
-        new_layer = nn.Conv2d(in_channels=n_channels, 
-                        out_channels=existing_layer.out_channels, 
-                        kernel_size=existing_layer.kernel_size, 
-                        stride=existing_layer.stride, 
-                        padding=existing_layer.padding,
-                        bias=existing_layer.bias)
+            new_layer = nn.Conv2d(in_channels=n_channels, 
+                            out_channels=existing_layer.out_channels, 
+                            kernel_size=existing_layer.kernel_size, 
+                            stride=existing_layer.stride, 
+                            padding=existing_layer.padding,
+                            bias=existing_layer.bias)
 
 
-        new_layer.weight[:, :existing_layer.in_channels, :, :] = existing_layer.weight.clone() # copying the weights from the old to the new layer
-        
-        copy_weights = 0 # take channel 0 weights to initialize new ones
-        for i in range(n_channels - existing_layer.in_channels): # copying the weights of the `copy_weights` channel of the old layer to the extra channels of the new layer
-            channel = existing_layer.in_channels + i
-            new_layer.weight[:, channel:channel+1, :, :] = existing_layer.weight[:, copy_weights:copy_weights+1, :, :].clone()
+            new_layer.weight[:, :existing_layer.in_channels, :, :] = existing_layer.weight.clone() # copying the weights from the old to the new layer
+            
+            copy_weights = 0 # take channel 0 weights to initialize new ones
+            for i in range(n_channels - existing_layer.in_channels): # copying the weights of the `copy_weights` channel of the old layer to the extra channels of the new layer
+                channel = existing_layer.in_channels + i
+                new_layer.weight[:, channel:channel+1, :, :] = existing_layer.weight[:, copy_weights:copy_weights+1, :, :].clone()
 
-        new_layer.weight = nn.Parameter(new_layer.weight)
+            new_layer.weight = nn.Parameter(new_layer.weight)
 
-        self.resnet.conv1 = new_layer
-
+            self.resnet.conv1 = new_layer
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
