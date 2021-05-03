@@ -11,7 +11,7 @@ from PIL import Image
 
 
 from active_learning import lit_models
-from active_learning.data import al_sampler # for active learning sampling 
+from active_learning.sampling import al_sampler # for active learning sampling 
 from torch.utils.data import ConcatDataset, DataLoader
 
 

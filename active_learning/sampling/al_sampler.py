@@ -1,7 +1,6 @@
 import numpy as np
-import torch
 
-def get_random_samples(pool_size,sample_size):
+def get_random_samples(pool_size, sample_size):
     
     #return sample size of random indices 
     if pool_size<=2000:
