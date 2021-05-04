@@ -4,11 +4,12 @@ import torch
 import torch.nn as nn
 import torchvision.transforms as tt
 import torchvision
+import warnings
 
 PRETRAINED = True
 NUM_CLASSES = 4
 NUM_CHANNELS = 11
-DROPOUT = False
+DROPOUT = True
 DROPUT_PROB = 0.5
 DROPOUT_HIDDEN_DIM = 512
 BINARY = False
@@ -31,7 +32,7 @@ class ResnetClassifier(nn.Module):
         # override values if binary or rgb are specified
         if binary == True:
             n_classes = 2
-            print("Overriding n_classes parameter, setting n_classes to 2")
+            print("Overriding n_classes parameter, setting n_classes to 2\n")
         if rgb == True:
             n_channels = 3
             print("Overriding n_channels parameter, setting n_channels to 3\n")
@@ -39,15 +40,26 @@ class ResnetClassifier(nn.Module):
         # base ResNet model
         self.resnet = torchvision.models.resnet50(pretrained=pretrained)
 
-        # preprocessing steps to resize images (adapted from https://pytorch.org/hub/pytorch_vision_resnet/)
-        new_channel_mean = 0.485 # from existing channel 0
-        new_channel_std = 0.229 # from existing channel 0
-        self.preprocess = tt.Compose([
+        # preprocessing for standard RGB images
+        if rgb == True:
+            self.preprocess = tt.Compose([
                     tt.Resize(224),
                     tt.Normalize(
-                    mean=[0.485, 0.456, 0.406] + [new_channel_mean]*(n_channels-3), 
-                    std=[0.229, 0.224, 0.225] + [new_channel_std]*(n_channels-3))
+                    mean=[0.485, 0.456, 0.406], 
+                    std=[0.229, 0.224, 0.225])
                 ])
+        
+        # preprocessing steps to resize images (adapted from https://pytorch.org/hub/pytorch_vision_resnet/)
+        else:
+            warnings.warn("Image normalization assumes RGB channels correspond to channels 3,2,1")
+            new_channel_mean = 0.485 # from existing channel 0
+            new_channel_std = 0.229 # from existing channel 0
+            self.preprocess = tt.Compose([
+                        tt.Resize(224),
+                        tt.Normalize(
+                        mean=[new_channel_mean] + [0.406, 0.456, 0.485] + [new_channel_mean]*(n_channels-4), 
+                        std=[new_channel_std] + [0.225, 0.224, 0.229] + [new_channel_std]*(n_channels-4))
+                    ])
 
         # changing the architecture of the laster layers
         # if dropout is activated, add an additional fully connected layer with dropout before the last layer
