@@ -18,9 +18,11 @@ import numpy as np
 
 IMG_DIM = 65
 NUM_CLASSES = 4
-N_TRAIN = 22000 # approx 25% of available training samples
+N_TRAIN = 20000 # approx 25% of available training samples
 N_VAL = 10778 # full available validation set
 BANDS = ['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B9', 'B10', 'B11']
+BINARY = False
+RGB = False
 
 RAW_DATA_DIRNAME = BaseDataModule.data_dirname() / "raw" / "droughtwatch"
 METADATA_FILENAME = RAW_DATA_DIRNAME / "metadata.toml"
@@ -42,6 +44,8 @@ class DroughtWatch(BaseDataModule):
         parser.add_argument("--n_train_images", type=int, default=N_TRAIN)
         parser.add_argument("--n_validation_images", type=int, default=N_VAL)
         parser.add_argument("--bands", type=str, default=",".join(BANDS))
+        parser.add_argument("--binary", type=bool, default=BINARY)
+        parser.add_argument("--rgb", type=bool, default=RGB)
         return parser
 
     def __init__(self, args=None):
@@ -50,6 +54,8 @@ class DroughtWatch(BaseDataModule):
         self.n_train_images = self.args.get("n_train_images", N_TRAIN)
         self.n_validation_images = self.args.get("n_validation_images", N_VAL)
         self.bands = self.args.get("--bands", ",".join(BANDS)).split(",")
+        self.binary = self.args.get("binary", BINARY)
+        self.rgb = self.args.get("rgb", RGB)
 
         _check_disk_dataset_availability(self)
 
@@ -65,21 +71,75 @@ class DroughtWatch(BaseDataModule):
     
     def init_setup(self):
         print("INIT SETUP DATA CALLED  \n-------------\n")    
+
         with h5py.File(PROCESSED_DATA_FILE_TRAINVAL, "r") as f:
             self.x_train = f["x_train"][:]
             self.y_train = f["y_train"][:].squeeze().astype(int)
             self.x_val = f["x_val"][:]
             self.y_val = f["y_val"][:].squeeze().astype(int)
 
-        self.data_train = BaseDataset(self.x_train, self.y_train, transform=self.transform)
-        self.data_val = BaseDataset(self.x_val, self.y_val, transform=self.transform)
-
         with h5py.File(PROCESSED_DATA_FILE_POOL, "r") as f:
             self.x_pool = f["x_pool"][:]
             self.y_pool = f["y_pool"][:].squeeze().astype(int)
 
+        # set random seed for reproducibility
+        np.random.seed(48)
+
+        # concatenate train and pool before shuffling
+        x_all = np.concatenate([self.x_train, self.x_pool])
+        y_all = np.concatenate([self.y_train, self.y_pool])
+
+        # get initial training set length
+        train_len = x_all.shape[0]
+        init_len = self.n_train_images
+
+        # get permuted array of indices
+        idxs = np.random.permutation(np.arange(train_len))
+
+        # sample initial training set
+        self.x_train = x_all[idxs[:init_len]]
+        self.y_train = y_all[idxs[:init_len]]
+
+        # remaining examples become unlabelled poolF
+        self.x_pool = x_all[idxs[init_len:]]
+        self.y_pool = y_all[idxs[init_len:]]
+
+        print("\nScenario:")
+
+        # clip labels for binary classification
+        if self.binary == True:
+            self.y_train = np.clip(self.y_train, 0, 1)
+            self.y_pool = np.clip(self.y_pool, 0, 1)
+            self.y_val = np.clip(self.y_val, 0, 1)
+            assert set(self.y_train) == set(self.y_pool) == set(self.y_val) == {0, 1}
+            print("- Binary classification")
+
+        else:
+            assert set(self.y_train) == set(self.y_pool) == set(self.y_val) == {0, 1, 2, 3}
+            print("- Multi-class classification")
+
+        # select only RGB channels
+        if self.rgb == True and self.x_train.shape[-1] == 11:
+            self.x_train = self.x_train[...,(3,2,1)]
+            self.x_pool = self.x_pool[...,(3,2,1)]
+            self.x_val = self.x_val[...,(3,2,1)]
+            assert self.x_train.shape[1:] == self.x_pool.shape[1:] == self.x_val.shape[1:] == (65, 65, 3)
+            print("- RGB channels")
+
+        elif self.rgb == False and self.x_train.shape[-1] == 11:
+            print("- All channels")
+
+        else:
+            print(f"- Custom channel specification: {self.bands}")
+
+        self.data_train = BaseDataset(self.x_train, self.y_train, transform=self.transform)
+        self.data_val = BaseDataset(self.x_val, self.y_val, transform=self.transform)
         self.data_test = BaseDataset(self.x_pool, self.y_pool, transform=self.transform) 
-        self.data_unlabelled=BaseDataset(self.x_pool, self.y_pool, transform=self.transform)
+        self.data_unlabelled = BaseDataset(self.x_pool, self.y_pool, transform=self.transform)
+
+        print(f"\nInitial training set size: {len(self.data_train)}")
+        print(f"Initial unlabelled pool size: {len(self.data_unlabelled)}")
+        print(f"Validation set size: {len(self.data_val)}\n")
         
 
 
