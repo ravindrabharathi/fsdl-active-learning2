@@ -20,3 +20,8 @@ train-mnist-cnn-ddp:
 # Lint
 lint:
 	tasks/lint.sh
+
+style:
+	black .
+	flake8
+	isort .
