@@ -13,9 +13,11 @@ import toml
 from active_learning.data.base_data_module import _download_raw_dataset, BaseDataModule, load_and_print_info
 from active_learning.data.util import BaseDataset
 
+import torch
 import tensorflow as tf
 import numpy as np
 
+DEBUG_OUTPUT = True
 IMG_DIM = 65
 NUM_CLASSES = 4
 N_TRAIN = 20000 # approx 25% of available training samples
@@ -46,6 +48,7 @@ class DroughtWatch(BaseDataModule):
         parser.add_argument("--bands", type=str, default=",".join(BANDS))
         parser.add_argument("--binary", type=bool, default=BINARY)
         parser.add_argument("--rgb", type=bool, default=RGB)
+        parser.add_argument("--reduced_pool", type=bool, default=False, help="Whether to take only a fraction of the pool (allows for faster results during development)")
         return parser
 
     def __init__(self, args=None):
@@ -56,6 +59,7 @@ class DroughtWatch(BaseDataModule):
         self.bands = self.args.get("--bands", ",".join(BANDS)).split(",")
         self.binary = self.args.get("binary", BINARY)
         self.rgb = self.args.get("rgb", RGB)
+        self.reduced_pool = self.args.get("reduced_pool", False)
 
         _check_disk_dataset_availability(self)
 
@@ -214,6 +218,60 @@ class DroughtWatch(BaseDataModule):
         print(' New train set size ',len(self.x_train))
         print('New unlabelled pool size ',len(self.x_pool))
 
+
+    def get_pool_probabilities(self, model, T=10):
+
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        
+        # for some reason, lightning module is not yet on cuda, even if it was initialized that way --> transfer it
+        model = model.to(device)
+
+        # pytorch dataloader for batch-wise processing
+        all_samples = self.unlabelled_dataloader()
+
+        if DEBUG_OUTPUT:
+            print("Processing pool of instances to generate probabilities")
+            print("(Note: Based on the pool size this takes a while. Will generate debug output every 5%.)\n")
+            five_percent = int(self.get_ds_length(ds_name="unlabelled") / all_samples.batch_size / 20)
+            i = 0
+            percentage_output = 5
+
+        # initialize pytorch tensor to store acquisition scores
+        all_outputs = torch.Tensor().to(device)
+
+        # set model to training modus in order to have dropout layers activated
+        model.train()
+
+        if self.reduced_pool:
+            print("NOTE: Reduced pool dev parameter activated, will only process first batch")
+            all_samples = [next(all_samples._get_iterator())]
+
+
+        # process pool of instances batch wise
+        for batch_features, _ in all_samples:
+
+            with torch.no_grad():
+                outputs = torch.stack(
+                    [
+                        torch.softmax( # probabilities from logits
+                            model(batch_features.to(device)), dim=-1) # logits
+                        for t in range(T) # multiple calculations
+                    ]
+                , dim = -1)
+
+            all_outputs = torch.cat([all_outputs, outputs], dim = 0)
+
+            if DEBUG_OUTPUT:
+                i += 1
+                if i > five_percent:
+                    print(f"{percentage_output}% of samples in pool processed")
+                    percentage_output += 5
+                    i = 0
+
+        if DEBUG_OUTPUT:
+            print(f"100% of samples in pool processed\n")
+        
+        return all_outputs
 
 
 def _check_disk_dataset_availability(self):
