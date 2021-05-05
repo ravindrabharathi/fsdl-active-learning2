@@ -239,8 +239,9 @@ class DroughtWatch(BaseDataModule):
         # initialize pytorch tensor to store acquisition scores
         all_outputs = torch.Tensor().to(device)
 
-        # set model to training modus in order to have dropout layers activated
-        model.train()
+        # set model to eval (non-training) modus and enable dropout layers
+        model.eval()
+        _enable_dropout(model)
 
         if self.reduced_pool:
             print("NOTE: Reduced pool dev parameter activated, will only process first batch")
@@ -415,6 +416,11 @@ def _process_raw_dataset(self, filename: str, dirname: Path):
     shutil.rmtree("droughtwatch_data")
     os.chdir(curdir)
           
+def _enable_dropout(model):
+    for each_module in model.modules():
+        if each_module.__class__.__name__.startswith('Dropout'):
+            each_module.train()
+
 
 if __name__ == "__main__":
     load_and_print_info(DroughtWatch)
