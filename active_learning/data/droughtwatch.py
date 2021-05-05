@@ -46,8 +46,8 @@ class DroughtWatch(BaseDataModule):
         parser.add_argument("--n_train_images", type=int, default=N_TRAIN)
         parser.add_argument("--n_validation_images", type=int, default=N_VAL)
         parser.add_argument("--bands", type=str, default=",".join(BANDS))
-        parser.add_argument("--binary", type=bool, default=BINARY)
-        parser.add_argument("--rgb", type=bool, default=RGB)
+        parser.add_argument('--binary', action='store_true', help="Whether to run binary classification experiment (default is multi-class)")
+        parser.add_argument('--rgb', action='store_true', help="Whether to include RGB channels only (default is all 11 channels)")
         parser.add_argument("--reduced_pool", type=bool, default=False, help="Whether to take only a fraction of the pool (allows for faster results during development)")
         return parser
 
