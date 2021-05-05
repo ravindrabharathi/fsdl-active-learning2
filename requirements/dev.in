@@ -12,6 +12,7 @@ nltk
 pycodestyle
 pydocstyle
 pylint
+pyproject-flake8
 pytest
 pyyaml
 tornado
