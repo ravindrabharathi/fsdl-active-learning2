@@ -219,6 +219,41 @@ class DroughtWatch(BaseDataModule):
         print('New unlabelled pool size ',len(self.x_pool))
 
 
+    def get_activation_scores(self, model):
+
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        
+        # for some reason, lightning module is not yet on cuda, even if it was initialized that way --> transfer it
+        model = model.to(device)
+
+        # pytorch dataloader for batch-wise processing
+        all_samples = self.unlabelled_dataloader()
+
+        # initialize pytorch tensors to store activation scores
+        out_layer_0 = torch.Tensor().to(device)
+        out_layer_1 = torch.Tensor().to(device)
+        out_layer_2 = torch.Tensor().to(device)
+
+        model.eval()
+        with torch.no_grad():
+
+            # loop through batches in unlabelled pool
+            for batch_features, _ in all_samples:
+                
+                # move features to device
+                batch_features = batch_features.to(device)
+
+                # extract intermediate and final activations
+                out0, out1, out2 = model(batch_features, extract_intermediate_activations=True)
+
+                # store batch results
+                out_layer_0 = torch.cat([out_layer_0, out0])
+                out_layer_1 = torch.cat([out_layer_1, out1])
+                out_layer_2 = torch.cat([out_layer_2, out2])
+
+        return out_layer_0, out_layer_1, out_layer_2
+
+
     def get_pool_probabilities(self, model, T=10):
 
         device = "cuda" if torch.cuda.is_available() else "cpu"

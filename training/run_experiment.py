@@ -15,6 +15,7 @@ torch.manual_seed(42)
 
 DEBUG_OUTPUT = True
 MC_SAMPLING_METHODS = ["bald", "max_entropy", "least_confidence_mc", "margin_mc", "ratio_mc", "entropy_mc"]
+MB_SAMPLING_METHODS = ["mb_outliers_mean", "mb_outliers_max"]
 MC_ITERATIONS = 10
 
 
@@ -121,7 +122,21 @@ def main():
         print("Total Unlabelled Pool Size ", unlabelled_data_size)
         print("Query Sample size ", sample_size)
 
-        if sampling_method not in MC_SAMPLING_METHODS:
+        if sampling_method in MC_SAMPLING_METHODS:
+
+            # predict multiple times with model in 'training' mode (dropout activated)
+            probabilities = data.get_pool_probabilities(lit_model, T=MC_ITERATIONS)
+
+            new_indices = sampling_class(probabilities, sample_size)
+
+        elif sampling_method in MB_SAMPLING_METHODS:
+
+            # get activations from intermediate layers
+            out_layer_0, out_layer_1, out_layer_2 = data.get_activation_scores(lit_model)
+
+            new_indices = sampling_class(out_layer_0, out_layer_1, out_layer_2, sample_size)
+
+        else:
 
             # reset predictions array of model
             lit_model.reset_predictions()
@@ -132,13 +147,6 @@ def main():
 
             # get indices for samples to be labelled using the al_sampler methods
             new_indices = sampling_class(predictions, sample_size)
-
-        else:
-
-            # predict multiple times with model in 'training' mode (dropout activated)
-            probabilities = data.get_pool_probabilities(lit_model, T=MC_ITERATIONS)
-
-            new_indices = sampling_class(probabilities, sample_size)
 
         if DEBUG_OUTPUT:
             print(f'Indices selected for labelling via method "{sampling_method}": \n-----------------\n')
