@@ -14,7 +14,7 @@ np.random.seed(42)
 torch.manual_seed(42)
 
 DEBUG_OUTPUT = True
-MC_SAMPLING_METHODS = ["bald", "max_entropy"]
+MC_SAMPLING_METHODS = ["bald", "max_entropy", "least_confidence_mc", "margin_mc", "ratio_mc", "entropy_mc"]
 MC_ITERATIONS = 10
 
 
