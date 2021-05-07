@@ -75,8 +75,8 @@ class BaseLitModel(pl.LightningModule):  # pylint: disable=too-many-ancestors
         )
         return {"optimizer": optimizer, "lr_scheduler": scheduler, "monitor": "val_loss"}
 
-    def forward(self, x):
-        return self.model(x)
+    def forward(self, x, **kwargs):
+        return self.model(x, **kwargs)
 
     def training_step(self, batch, batch_idx):  # pylint: disable=unused-argument
         x, y = batch

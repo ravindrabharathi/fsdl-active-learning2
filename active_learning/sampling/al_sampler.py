@@ -295,3 +295,46 @@ def entropy_mc(probabilities: torch.Tensor, sample_size: int) -> np.array:
     idxs = idxs.detach().cpu().numpy()
 
     return idxs
+
+
+def mb_outliers_mean(out_layer_1: torch.Tensor, out_layer_2: torch.Tensor, out_layer_3: torch.Tensor, sample_size: int) -> np.array:
+    """Diversity sampling technique from https://towardsdatascience.com/https-towardsdatascience-com-diversity-sampling-cheatsheet-32619693c304"""
+
+    # calculate mean activations for each layer's activations
+    mean_layer_1 = torch.mean(out_layer_1, dim=-1)
+    mean_layer_2 = torch.mean(out_layer_2, dim=-1)
+    mean_layer_3 = torch.mean(out_layer_3, dim=-1)
+
+    # get average scores across layers
+    scores = (mean_layer_1 + mean_layer_2 + mean_layer_3) / 3
+
+    # make sure sample size doesn't exceed scores
+    sample_size = np.min([len(scores), sample_size])
+
+    # pick k examples with lowest activation scores
+    _, idxs = torch.topk(scores, sample_size, largest=False)
+    idxs = idxs.detach().cpu().numpy()
+    
+    return idxs
+
+
+def mb_outliers_max(out_layer_1: torch.Tensor, out_layer_2: torch.Tensor, out_layer_3: torch.Tensor, sample_size: int) -> np.array:
+    """Diversity sampling technique from https://towardsdatascience.com/https-towardsdatascience-com-diversity-sampling-cheatsheet-32619693c304"""
+
+    # calculate max activations for each layer's activations
+    max_layer_1 = torch.max(out_layer_1, dim=-1).values
+    max_layer_2 = torch.max(out_layer_2, dim=-1).values
+    max_layer_3 = torch.max(out_layer_3, dim=-1).values
+
+    # get overall maximum activation value
+    scores = torch.max(torch.max(max_layer_1, max_layer_2), max_layer_3)
+
+    # make sure sample size doesn't exceed scores
+    sample_size = np.min([len(scores), sample_size])
+
+    # pick k examples with lowest activation scores
+    _, idxs = torch.topk(scores, sample_size, largest=False)
+    idxs = idxs.detach().cpu().numpy()
+    
+    return idxs
+
