@@ -15,7 +15,7 @@ torch.manual_seed(42)
 
 DEBUG_OUTPUT = True
 MC_SAMPLING_METHODS = ["bald", "max_entropy", "least_confidence_mc", "margin_mc", "ratio_mc", "entropy_mc"]
-MB_SAMPLING_METHODS = ["mb_outliers_mean", "mb_outliers_max"]
+MB_SAMPLING_METHODS = ["mb_outliers_mean", "mb_outliers_max", "mb_outliers_mean_least_confidence", "mb_outliers_mean_entropy"]
 MC_ITERATIONS = 10
 
 

@@ -230,9 +230,9 @@ class DroughtWatch(BaseDataModule):
         all_samples = self.unlabelled_dataloader()
 
         # initialize pytorch tensors to store activation scores
-        out_layer_0 = torch.Tensor().to(device)
         out_layer_1 = torch.Tensor().to(device)
         out_layer_2 = torch.Tensor().to(device)
+        out_layer_3 = torch.Tensor().to(device)
 
         model.eval()
         with torch.no_grad():
@@ -244,14 +244,14 @@ class DroughtWatch(BaseDataModule):
                 batch_features = batch_features.to(device)
 
                 # extract intermediate and final activations
-                out0, out1, out2 = model(batch_features, extract_intermediate_activations=True)
+                out1, out2, out3 = model(batch_features, extract_intermediate_activations=True)
 
                 # store batch results
-                out_layer_0 = torch.cat([out_layer_0, out0])
                 out_layer_1 = torch.cat([out_layer_1, out1])
                 out_layer_2 = torch.cat([out_layer_2, out2])
+                out_layer_3 = torch.cat([out_layer_3, out3])
 
-        return out_layer_0, out_layer_1, out_layer_2
+        return out_layer_1, out_layer_2, out_layer_3
 
 
     def get_pool_probabilities(self, model, T=10):
