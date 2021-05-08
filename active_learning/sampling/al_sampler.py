@@ -338,3 +338,92 @@ def mb_outliers_max(out_layer_1: torch.Tensor, out_layer_2: torch.Tensor, out_la
     
     return idxs
 
+
+def mb_outliers_mean_least_confidence(out_layer_1: torch.Tensor, out_layer_2: torch.Tensor, out_layer_3: torch.Tensor, sample_size: int) -> np.array:
+    """Combined uncertainty and diversity sampling technique from https://towardsdatascience.com/advanced-active-learning-cheatsheet-d6710cba7667"""
+
+    # Part 1: pre-sample with least confidence
+
+    # convert final layer to probabilities 
+    probabilities = torch.nn.functional.softmax(out_layer_3, dim=-1)
+    # get top probabilities
+    max_probs = torch.max(probabilities, dim=-1)[0]
+    # get number of classes
+    num_classes = probabilities[0].shape[0]
+    # calculate least confidence scores
+    least_conf_scores = (num_classes * (1 - max_probs)) / (num_classes - 1)
+
+    # define pre_sample_size
+    pre_sample_size = 4*sample_size
+    # make sure sample size doesn't exceed scores
+    pre_sample_size = np.min([len(least_conf_scores), pre_sample_size])
+
+    # pick k examples with highest uncertainty scores
+    _, least_conf_idxs = torch.topk(least_conf_scores, pre_sample_size, largest=True)
+    least_conf_idxs = least_conf_idxs.detach().cpu().numpy()
+
+    # Part 2: sample from lease confidence pool using model based outliers
+
+    # calculate mean activations for each layer's activations
+    mean_layer_1 = torch.mean(out_layer_1, dim=-1)
+    mean_layer_2 = torch.mean(out_layer_2, dim=-1)
+    mean_layer_3 = torch.mean(out_layer_3, dim=-1)
+
+    # get average scores across layers
+    scores_raw = (mean_layer_1 + mean_layer_2 + mean_layer_3) / 3
+
+    # select most uncertain examples
+    scores = scores_raw[least_conf_idxs]
+
+    # make sure sample size doesn't exceed scores
+    sample_size = np.min([len(scores), sample_size])
+
+    # pick k examples with lowest activation scores
+    _, idxs = torch.topk(scores, sample_size, largest=False)
+    idxs = idxs.detach().cpu().numpy()
+    
+    return idxs
+
+
+def mb_outliers_mean_entropy(out_layer_1: torch.Tensor, out_layer_2: torch.Tensor, out_layer_3: torch.Tensor, sample_size: int) -> np.array:
+    """Combined uncertainty and diversity sampling technique from https://towardsdatascience.com/advanced-active-learning-cheatsheet-d6710cba7667"""
+
+    # Part 1: pre-sample with least confidence
+
+    # convert final layer to probabilities 
+    probabilities = torch.nn.functional.softmax(out_layer_3, dim=-1)
+    # calculate entropy
+    probslogs = probabilities * torch.log2(probabilities)
+    summed = probslogs.sum(dim=1)
+    entropy_scores = torch.subtract(torch.zeros_like(summed), summed) / np.log2(probslogs.size()[1])
+
+    # define pre_sample_size
+    pre_sample_size = 4*sample_size
+    # make sure sample size doesn't exceed scores
+    pre_sample_size = np.min([len(entropy_scores), pre_sample_size])
+
+    # pick k examples with highest uncertainty scores
+    _, entropy_idxs = torch.topk(entropy_scores, pre_sample_size, largest=True)
+    entropy_idxs = entropy_idxs.detach().cpu().numpy()
+
+    # Part 2: sample from lease confidence pool using model based outliers
+
+    # calculate mean activations for each layer's activations
+    mean_layer_1 = torch.mean(out_layer_1, dim=-1)
+    mean_layer_2 = torch.mean(out_layer_2, dim=-1)
+    mean_layer_3 = torch.mean(out_layer_3, dim=-1)
+
+    # get average scores across layers
+    scores = (mean_layer_1 + mean_layer_2 + mean_layer_3) / 3
+
+    # select most uncertain examples
+    scores = scores[entropy_idxs]
+
+    # make sure sample size doesn't exceed scores
+    sample_size = np.min([len(scores), sample_size])
+
+    # pick k examples with lowest activation scores
+    _, idxs = torch.topk(scores, sample_size, largest=False)
+    idxs = idxs.detach().cpu().numpy()
+    
+    return idxs
