@@ -237,8 +237,6 @@ def _featurize_instances(learner, X):
 
         if DEBUG_OUTPUT:
             i += 1
-            if i > 2:
-                break
             if i > ten_percent:
                 print(f"{percentage_output}% of samples in pool featurized")
                 percentage_output += 10

@@ -1,5 +1,11 @@
+from math import ceil, isnan
+
+import hdbscan
 import numpy as np
+import pandas as pd
 import torch
+
+DEBUG_OUTPUT = True
 
 
 def random(predictions, sample_size):
@@ -427,3 +433,147 @@ def mb_outliers_mean_entropy(out_layer_1: torch.Tensor, out_layer_2: torch.Tenso
     idxs = idxs.detach().cpu().numpy()
     
     return idxs
+
+
+def mb_clustering(out_layer_1: torch.Tensor, out_layer_2: torch.Tensor, out_layer_3: torch.Tensor, sample_size: int) -> np.array:
+    """Active learning sampling technique that translates instances from the pool to features by using an internal layer of the
+    learner model as featurizer, performing HDBSCAN to cluster the instances and then returning a combination of instances spread
+    across all clusters and outliers detected via GLOSH.
+    """
+    
+    HDBSCAN_CLUSTER_OUTLIER_QUANTILE = 0.9
+    HDBSCAN_CLUSTER_OUTLIER_FRACTION = 0.2
+    
+    # model based featurizing
+    features = out_layer_3.cpu().numpy()
+
+    # cluster and calculate glosh outlier scores
+    clusterer, n_clusters = _hdbscan_cluster_instances(features)
+
+    # initialize variables needed below
+    n_features = len(features)
+    instances_per_cluster = int(sample_size / n_clusters)
+    all_selected_idx = np.array([]).astype(int)
+
+    # check whether distribution between clusters can be done even - if not, distribute remaining equally
+    if sample_size % n_clusters != 0:
+        leftover_instances = sample_size - instances_per_cluster * n_clusters
+    else:
+        leftover_instances = 0
+
+    if DEBUG_OUTPUT:
+        print(f"{n_clusters} clusters found, entering loop to pick instances in all of them...")
+
+    # loop over clusters to select instances in all of them
+    for cluster_id in range(n_clusters):
+
+        # distribute remaining instances if needed
+        if leftover_instances > 0:
+            remaining_clusters = n_clusters - cluster_id
+            additional_instances = ceil((leftover_instances / remaining_clusters))
+            instances_in_cluster = instances_per_cluster + additional_instances
+            leftover_instances -= additional_instances
+        else:
+            instances_in_cluster = instances_per_cluster
+
+        n_outliers = int(instances_in_cluster * HDBSCAN_CLUSTER_OUTLIER_FRACTION)
+        n_regular = instances_in_cluster - n_outliers
+
+        # limit pool to current cluster only
+        # NOTE: possible RuntimeWarning because of NaN values (https://github.com/scikit-learn-contrib/hdbscan/issues/374)
+        cluster_idx_all = np.where(clusterer.labels_ == cluster_id)[0]
+        
+        # divide into main points and outliers
+        outlier_threshold = np.quantile(clusterer.outlier_scores_[cluster_idx_all], HDBSCAN_CLUSTER_OUTLIER_QUANTILE)
+        if not (isnan(outlier_threshold) or outlier_threshold == 0):
+            regular_idx_all = np.where(clusterer.outlier_scores_[cluster_idx_all] < outlier_threshold)[0] 
+            outlier_idx_all = np.where(clusterer.outlier_scores_[cluster_idx_all] >= outlier_threshold)[0]
+        
+        # if possible cluster cannot be devided into main points and outliers, just sample randomly
+        else:
+            n_cluster_points = len(cluster_idx_all)
+            outlier_idx_all = np.random.choice(range(n_cluster_points), int(n_cluster_points*HDBSCAN_CLUSTER_OUTLIER_FRACTION), replace=False)
+            regular_idx_all = np.delete(range(n_cluster_points), outlier_idx_all)
+
+        # avoid having a pool that is too small to sample from
+        if len(regular_idx_all) < n_regular:
+            leftover_instances += n_regular - len(regular_idx_all)
+            n_regular = len(regular_idx_all)
+        if len(outlier_idx_all) < n_outliers:
+            leftover_instances += n_outliers - len(outlier_idx_all)
+            n_outliers = len(outlier_idx_all)
+
+        # select both regular and outlier instances for this cluster
+        regular_idx_selected = np.random.choice(len(regular_idx_all), size=n_regular, replace=False)
+        outlier_idx_selected = np.random.choice(len(outlier_idx_all), size=n_outliers, replace=False)
+
+        # calculate all idx that are selected from this cluster
+        if n_outliers > 0:
+            outlier_idx_original = np.array(range(n_features))[cluster_idx_all][outlier_idx_all][
+                outlier_idx_selected
+            ]  # outlier idx of this cluster (idx translated to full pool)
+        else:
+            outlier_idx_original = np.array([]).astype(int)
+
+        if n_regular > 0:
+            regular_idx_original = np.array(range(n_features))[cluster_idx_all][regular_idx_all][
+                regular_idx_selected
+            ]  # regular idx of this cluster (idx translated to full pool)
+        else:
+            regular_idx_original = np.array([]).astype(int)
+
+        cluster_idx_selected = np.concatenate([outlier_idx_original, regular_idx_original])
+
+        all_selected_idx = np.concatenate([all_selected_idx, cluster_idx_selected])
+
+
+    if len(all_selected_idx) < sample_size:
+        print(f"CAUTION: cluster_outlier_combined algorithm was not able to build a set of {sample_size} instances as requested because HDBSCAN clusters did not contain enough points.")
+        print(f"Selecting {sample_size-len(all_selected_idx)} random instances additionally.")
+
+        remaining_idx = np.delete(range(len(clusterer.labels_)), all_selected_idx)
+        all_selected_idx = np.concatenate([all_selected_idx, np.random.choice(remaining_idx, sample_size-len(all_selected_idx), replace=False)])
+
+    return all_selected_idx
+
+
+def mb_outliers_glosh(out_layer_1: torch.Tensor, out_layer_2: torch.Tensor, out_layer_3: torch.Tensor, sample_size: int) -> np.array:
+    """Active learning sampling technique that translates instances from the pool to features by using an internal layer of the
+    model as featurizer, performing HDBSCAN to cluster the instances and then returning the outliers based on their GLOSH score.
+    """
+
+    # model based featurizing
+    features = out_layer_3.cpu().numpy()
+
+    # cluster and calculate glosh outlier scores
+    clusterer, n_clusters = _hdbscan_cluster_instances(features)
+
+    if DEBUG_OUTPUT:
+        print(f"{n_clusters} clusters found, returning outliers based on max. GLOSH score")
+
+    # select indices with highest outlier scores and return them
+    # NOTE: prints a RuntimeWarning sometimes because of NaN values (https://github.com/scikit-learn-contrib/hdbscan/issues/374)
+    idx = np.argsort(-clusterer.outlier_scores_)[:sample_size] 
+    return idx
+
+
+def _hdbscan_cluster_instances(features):
+
+    HDBSCAN_MIN_CLUSTER_SIZE = 100
+
+    if DEBUG_OUTPUT:
+        print(f"Performing HDBSCAN clustering for pool with shape {features.shape}...")
+
+    # perform clustering
+    n_clusters = -1
+    while n_clusters < 1:
+        clusterer = hdbscan.HDBSCAN(min_cluster_size=HDBSCAN_MIN_CLUSTER_SIZE, min_samples=1).fit(features)
+        n_clusters = clusterer.labels_.max() + 1
+        if n_clusters < 1:
+            if DEBUG_OUTPUT:
+                print(
+                    f"HDBSCAN was not able to find any clusters, halving min. cluster size from {min_cluster_size} to {int(min_cluster_size/2)}"
+                )
+            min_cluster_size = int(min_cluster_size / 2)
+
+    return clusterer, n_clusters
