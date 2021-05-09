@@ -63,6 +63,7 @@ def _setup_parser():
     parser.add_argument("--sampling_method", type=str, choices=BASIC_SAMPLING_METHODS+MC_SAMPLING_METHODS+MB_SAMPLING_METHODS, default="random", help="Active learning sampling strategy")
     parser.add_argument("--al_iter", type=int, default=-1, help="No. of active learning iterations (-1 to iterate until pool is exhausted)")
     parser.add_argument("--al_samples_per_iter", type=int, default=2000, help="No. of samples to query per active learning iteration")
+    parser.add_argument("--al_continue_training", action='store_true', help="Whether to continue training after sampling from pool (instead of training from scratch each time")
 
     parser.add_argument("--help", "-h", action="help")
     return parser
@@ -83,23 +84,16 @@ def main():
     model_class = _import_class(f"active_learning.models.{args.model_class}")
 
     data = data_class(args)
-    model = model_class(data_config=data.config(), args=args)
 
-    sampling_method = args.al_sampling_method
+    sampling_method = args.sampling_method
     sampling_class = _import_class(f"active_learning.sampling.al_sampler.{sampling_method}")
 
     lit_model_class = lit_models.BaseLitModel
-
-    if args.load_checkpoint is not None:
-        lit_model = lit_model_class.load_from_checkpoint(args.load_checkpoint, args=args, model=model)
-    else:
-        lit_model = lit_model_class(args=args, model=model)
 
     # --wandb args parameter ignored for now, always using wandb
     # specify project & entity outside of code, example: wandb init --project fdsl-active-learning --entity fsdl_active_learners
     project_name = "fsdl-active-learning_" + sampling_method
     logger = pl.loggers.WandbLogger(name=project_name, job_type="train") 
-    logger.watch(model)
     logger.log_hyperparams(vars(args))
 
     early_stopping_callback = pl.callbacks.EarlyStopping(monitor="val_loss", mode="min", patience=10)
@@ -109,22 +103,47 @@ def main():
 
     callbacks = [early_stopping_callback, model_checkpoint_callback]
 
-    args.weights_summary = None  # Don't Print full summary of the model # "full"
-    trainer = pl.Trainer.from_argparse_args(args, callbacks=callbacks, logger=logger, weights_save_path="training/logs")
-
+    args.weights_summary = None  # set to "full" to print model layer summary
     unlabelled_data_size = data.get_ds_length(ds_name="unlabelled")
-    trainer.tune(lit_model, datamodule=data)  # If passing --auto_lr_find, this will set learning rate
+
+    #al_continue_training = args.get("al_continue_training", False)
+
+    # initialize model and trainer once if al_continue_training flag is true
+    if args.al_continue_training:
+        model = model_class(data_config=data.config(), args=args)
+        logger.watch(model)
+
+        if args.load_checkpoint is not None:
+            lit_model = lit_model_class.load_from_checkpoint(args.load_checkpoint, args=args, model=model)
+        else:
+            lit_model = lit_model_class(args=args, model=model)
+
+        trainer = pl.Trainer.from_argparse_args(args, callbacks=callbacks, logger=logger, weights_save_path="training/logs")
+        trainer.tune(lit_model, datamodule=data)  # If passing --auto_lr_find, this will set learning rate
 
     al_iterations = 0
     
-    while unlabelled_data_size > 0 and (args.al_n_iter < 0 or al_iterations < args.al_n_iter):
+    while unlabelled_data_size > 0 and (args.al_iter < 0 or al_iterations < args.al_iter):
+
+        # initialize model and trainer (done inside loop to train from scratch)
+        if not args.al_continue_training:
+            model = model_class(data_config=data.config(), args=args)
+            logger.watch(model)
+
+            if args.load_checkpoint is not None:
+                lit_model = lit_model_class.load_from_checkpoint(args.load_checkpoint, args=args, model=model)
+            else:
+                lit_model = lit_model_class(args=args, model=model)
+
+            trainer = pl.Trainer.from_argparse_args(args, callbacks=callbacks, logger=logger, weights_save_path="training/logs")
+            trainer.tune(lit_model, datamodule=data)  # If passing --auto_lr_find, this will set learning rate
 
         # fit model on current data
         trainer.fit(lit_model, datamodule=data)
 
-        # if pool is large enough, take 'al_n_samples_per_iter' new samples - otherwise take all remaining ones
-        if unlabelled_data_size > args.al_n_samples_per_iter:
-            sample_size = args.al_n_samples_per_iter
+        # if pool is large enough, take 'al_samples_per_iter' new samples - otherwise take all remaining ones
+        if unlabelled_data_size > args.al_samples_per_iter:
+            sample_size = args.al_samples_per_iter
         else:
             sample_size = unlabelled_data_size
 
@@ -167,6 +186,10 @@ def main():
         unlabelled_data_size = data.get_ds_length(ds_name="unlabelled")
 
         al_iterations += 1
+
+        # need to reset current epoch to 0 to not hit max_epochs directly in next training run
+        if args.al_continue_training:
+            trainer.current_epoch = 0
 
     wandb.finish()
 
