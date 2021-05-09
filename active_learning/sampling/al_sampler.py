@@ -526,8 +526,6 @@ def mb_clustering(out_layer_1: torch.Tensor, out_layer_2: torch.Tensor, out_laye
 
         all_selected_idx = np.concatenate([all_selected_idx, cluster_idx_selected])
 
-        if DEBUG_OUTPUT:
-            print(f"Instance selection on cluster no. {cluster_id} done.")
 
     if len(all_selected_idx) < sample_size:
         print(f"CAUTION: cluster_outlier_combined algorithm was not able to build a set of {sample_size} instances as requested because HDBSCAN clusters did not contain enough points.")
