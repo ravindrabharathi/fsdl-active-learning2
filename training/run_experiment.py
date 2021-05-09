@@ -8,6 +8,7 @@ import pytorch_lightning as pl
 import wandb
 
 from active_learning import lit_models
+from active_learning.lit_models.base import MaxAccuracyLogger
 
 # In order to ensure reproducible experiments, we must set random seeds.
 np.random.seed(42)
@@ -84,11 +85,12 @@ def _initialize_trainer(model_class, lit_model_class, data, args, logger, al_ite
         lit_model = lit_model_class(args=args, model=model)
 
     # initialize callbacks
-    early_stopping_callback = pl.callbacks.EarlyStopping(monitor="val_loss", mode="min", patience=4)
+    early_stopping_callback = pl.callbacks.EarlyStopping(monitor="val_acc", mode="max", patience=5)
     model_checkpoint_callback = pl.callbacks.ModelCheckpoint(
         filename="{epoch:03d}-{val_loss:.3f}-{val_cer:.3f}", monitor="val_loss", mode="min"
     )
-    callbacks = [early_stopping_callback, model_checkpoint_callback]
+    max_accuracy_callback = MaxAccuracyLogger()
+    callbacks = [early_stopping_callback, model_checkpoint_callback, max_accuracy_callback]
 
     # initialize trainer
     trainer = pl.Trainer.from_argparse_args(args, callbacks=callbacks, logger=logger, weights_save_path="training/logs")
@@ -135,6 +137,15 @@ def main():
 
         # fit model on current data
         trainer.fit(lit_model, datamodule=data)
+
+        print(f"callback_metrics after fit of iteration {al_iteration}: {trainer.callback_metrics}")
+
+        # log best accuracies of this iteration to wandb
+        wandb.log({
+            "train_size": data.get_ds_length(ds_name="train"),
+            "train_acc_best": trainer.callback_metrics["train_acc_max"],
+            "val_acc_best": trainer.callback_metrics["val_acc_max"],
+        })
 
         # if pool is large enough, take 'al_samples_per_iter' new samples - otherwise take all remaining ones
         if unlabelled_data_size > args.al_samples_per_iter:
