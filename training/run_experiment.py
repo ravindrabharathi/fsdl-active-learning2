@@ -138,8 +138,6 @@ def main():
         # fit model on current data
         trainer.fit(lit_model, datamodule=data)
 
-        print(f"callback_metrics after fit of iteration {al_iteration}: {trainer.callback_metrics}")
-
         # log best accuracies of this iteration to wandb
         wandb.log({
             "train_size": data.get_ds_length(ds_name="train"),

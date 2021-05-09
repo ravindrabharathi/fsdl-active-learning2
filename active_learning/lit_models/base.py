@@ -2,7 +2,6 @@ import argparse
 import pytorch_lightning as pl
 import torch
 import numpy as np
-#import wandb
 
 OPTIMIZER = "Adam"
 LR = 1e-3
@@ -12,8 +11,7 @@ ONE_CYCLE_TOTAL_STEPS = 100
 class MaxAccuracyLogger(pl.callbacks.Callback):
     """W&B does not yet provide the possibility to visualize the maximum (instead of last) logged metric, see
     https://github.com/wandb/client/issues/736. This class helps us to keep track of the best accuracies over 
-    multiple epochs  of a training run via a hook that is called at the end of each epoch and logs the values
-    to the model logging function.
+    multiple epochs by always logging the maximum up to now.
     """
 
     train_acc_max = 0
@@ -21,7 +19,6 @@ class MaxAccuracyLogger(pl.callbacks.Callback):
 
     def on_validation_epoch_end(self, trainer, pl_module):
         metrics = trainer.callback_metrics
-        epoch = trainer.current_epoch
 
         # hook is also called after initial "test" validation before any training, but does not contain our relevant metrics there
         if "train_acc" in metrics:
@@ -32,12 +29,6 @@ class MaxAccuracyLogger(pl.callbacks.Callback):
             pl_module.log("train_acc_max", self.train_acc_max)
             pl_module.log("val_acc_max", self.val_acc_max)
             pl_module.log("train_size", train_size)
-
-            print(f"\ntrain_acc_max at epoch {epoch}: {self.train_acc_max}")
-            print(f"val_acc_max at epoch {epoch}: {self.val_acc_max}")
-            print(f"train_size at epoch {epoch}: {train_size}\n")
-
-            #wandb.log({"train_size": train_size, "train_acc_max": self.train_acc_max, "val_acc_max": self.val_acc_max})
 
 
 class Accuracy(pl.metrics.Accuracy):
@@ -84,9 +75,6 @@ class BaseLitModel(pl.LightningModule):  # pylint: disable=too-many-ancestors
         self.train_acc = Accuracy()
         self.val_acc = Accuracy()
         self.test_acc = Accuracy()
-        #self.train_acc_max = 0
-        #self.val_acc_max = 0
-        #self.test_acc_max = 0
         self.predictions=np.array([])
         self.train_size=0
 
@@ -119,8 +107,6 @@ class BaseLitModel(pl.LightningModule):  # pylint: disable=too-many-ancestors
         self.log("train_loss", loss,on_step=False, on_epoch=True,prog_bar=False)
         self.train_acc(logits, y)
         self.log("train_acc", self.train_acc, on_step=False, on_epoch=True, prog_bar=False)
-        #self.train_acc_max = max(self.train_acc_max, self.train_acc.compute().item())
-        #self.log("train_acc_max", self.train_acc_max, on_step=False, on_epoch=True, prog_bar=False)
         self.log("train_size", self.trainer.datamodule.get_ds_length('train'), on_step=False, on_epoch=True, prog_bar=False)
         return loss
 
@@ -132,8 +118,6 @@ class BaseLitModel(pl.LightningModule):  # pylint: disable=too-many-ancestors
         self.log("val_loss", loss, on_step=False, on_epoch=True,prog_bar=False)
         self.val_acc(logits, y)
         self.log("val_acc", self.val_acc, on_step=False, on_epoch=True, prog_bar=False)
-        #self.val_acc_max = max(self.val_acc_max, self.val_acc.compute().item())
-        #self.log("val_acc_max", self.val_acc_max, on_step=False, on_epoch=True, prog_bar=False)
         self.log("train_size", self.trainer.datamodule.get_ds_length('train'), on_step=False, on_epoch=True, prog_bar=False)
 
     def reset_predictions(self):
@@ -155,6 +139,4 @@ class BaseLitModel(pl.LightningModule):  # pylint: disable=too-many-ancestors
 
         self.test_acc(logits, y)
         self.log("test_acc", self.test_acc, on_step=False, on_epoch=True, prog_bar=False)
-        #self.test_acc_max = max(self.test_acc_max, self.test_acc.compute().item())
-        #self.log("test_acc_max", self.test_acc_max, on_step=False, on_epoch=True, prog_bar=False)
         self.log("train_size", self.trainer.datamodule.get_ds_length('train'), on_step=False, on_epoch=True, prog_bar=False)
