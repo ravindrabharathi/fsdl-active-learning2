@@ -198,9 +198,6 @@ class DroughtWatch(BaseDataModule):
         x_train_new = x_pool[sample_idxs]
         y_train_new = y_pool[sample_idxs]
 
-        print('x-train_new size',len(x_train_new))
-        print('len of sample ids',len(sample_idxs))
-
         # remove the new examples from the unlabelled pool
         mask = np.ones(x_pool.shape[0], bool)
         mask[sample_idxs] = False
@@ -215,8 +212,8 @@ class DroughtWatch(BaseDataModule):
         self.data_train = BaseDataset(self.x_train, self.y_train, transform=self.transform)
         self.data_test = BaseDataset(self.x_pool, self.y_pool, transform=self.transform) 
         self.data_unlabelled=BaseDataset(self.x_pool, self.y_pool, transform=self.transform)
-        print(' New train set size ',len(self.x_train))
-        print('New unlabelled pool size ',len(self.x_pool))
+        print('New train set size', len(self.x_train))
+        print('New unlabelled pool size', len(self.x_pool))
 
 
     def get_activation_scores(self, model):
