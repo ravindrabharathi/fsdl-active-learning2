@@ -69,6 +69,34 @@ def _setup_parser():
     return parser
 
 
+def _initialize_trainer(model_class, lit_model_class, data, args, logger, al_iteration):
+    
+    print(f"Initializing model for active learning iteration {al_iteration}")
+
+    # initialize model
+    model = model_class(data_config=data.config(), args=args)
+    logger.watch(model)
+    
+    # initialize lit_model
+    if args.load_checkpoint is not None:
+        lit_model = lit_model_class.load_from_checkpoint(args.load_checkpoint, args=args, model=model)
+    else:
+        lit_model = lit_model_class(args=args, model=model)
+
+    # initialize callbacks
+    early_stopping_callback = pl.callbacks.EarlyStopping(monitor="val_loss", mode="min", patience=4)
+    model_checkpoint_callback = pl.callbacks.ModelCheckpoint(
+        filename="{epoch:03d}-{val_loss:.3f}-{val_cer:.3f}", monitor="val_loss", mode="min"
+    )
+    callbacks = [early_stopping_callback, model_checkpoint_callback]
+
+    # initialize trainer
+    trainer = pl.Trainer.from_argparse_args(args, callbacks=callbacks, logger=logger, weights_save_path="training/logs")
+    trainer.tune(lit_model, datamodule=data)  # If passing --auto_lr_find, this will set learning rate
+
+    return trainer, lit_model
+
+
 def main():
     """
     Run an experiment.
@@ -96,47 +124,14 @@ def main():
     logger = pl.loggers.WandbLogger(name=project_name, job_type="train") 
     logger.log_hyperparams(vars(args))
 
-    early_stopping_callback = pl.callbacks.EarlyStopping(monitor="val_loss", mode="min", patience=10)
-    model_checkpoint_callback = pl.callbacks.ModelCheckpoint(
-        filename="{epoch:03d}-{val_loss:.3f}-{val_cer:.3f}", monitor="val_loss", mode="min"
-    )
-
-    callbacks = [early_stopping_callback, model_checkpoint_callback]
-
     args.weights_summary = None  # set to "full" to print model layer summary
     unlabelled_data_size = data.get_ds_length(ds_name="unlabelled")
 
-    #al_continue_training = args.get("al_continue_training", False)
+    al_iteration = 0
 
-    # initialize model and trainer once if al_continue_training flag is true
-    if args.al_continue_training:
-        model = model_class(data_config=data.config(), args=args)
-        logger.watch(model)
-
-        if args.load_checkpoint is not None:
-            lit_model = lit_model_class.load_from_checkpoint(args.load_checkpoint, args=args, model=model)
-        else:
-            lit_model = lit_model_class(args=args, model=model)
-
-        trainer = pl.Trainer.from_argparse_args(args, callbacks=callbacks, logger=logger, weights_save_path="training/logs")
-        trainer.tune(lit_model, datamodule=data)  # If passing --auto_lr_find, this will set learning rate
-
-    al_iterations = 0
+    trainer, lit_model = _initialize_trainer(model_class, lit_model_class, data, args, logger, al_iteration)
     
-    while unlabelled_data_size > 0 and (args.al_iter < 0 or al_iterations < args.al_iter):
-
-        # initialize model and trainer (done inside loop to train from scratch)
-        if not args.al_continue_training:
-            model = model_class(data_config=data.config(), args=args)
-            logger.watch(model)
-
-            if args.load_checkpoint is not None:
-                lit_model = lit_model_class.load_from_checkpoint(args.load_checkpoint, args=args, model=model)
-            else:
-                lit_model = lit_model_class(args=args, model=model)
-
-            trainer = pl.Trainer.from_argparse_args(args, callbacks=callbacks, logger=logger, weights_save_path="training/logs")
-            trainer.tune(lit_model, datamodule=data)  # If passing --auto_lr_find, this will set learning rate
+    while unlabelled_data_size > 0 and (args.al_iter < 0 or al_iteration < args.al_iter):
 
         # fit model on current data
         trainer.fit(lit_model, datamodule=data)
@@ -185,11 +180,16 @@ def main():
         data.expand_training_set(new_indices)
         unlabelled_data_size = data.get_ds_length(ds_name="unlabelled")
 
-        al_iterations += 1
-
-        # need to reset current epoch to 0 to not hit max_epochs directly in next training run
+        al_iteration += 1
+        
         if args.al_continue_training:
+            # need to reset current epoch to 0 to not hit max_epochs directly in next training run
             trainer.current_epoch = 0
+            print(f"Resetting current_epoch of trainer for {al_iteration}")
+
+        else:
+            # re-initialize model and trainer to start from scratch next iteration
+            trainer, lit_model = _initialize_trainer(model_class, lit_model_class, data, args, logger, al_iteration)
 
     wandb.finish()
 
