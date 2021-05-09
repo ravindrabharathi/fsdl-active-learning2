@@ -57,6 +57,9 @@ class BaseLitModel(pl.LightningModule):  # pylint: disable=too-many-ancestors
         self.predictions=np.array([])
         self.train_size=0
 
+        self.val_predictions = torch.Tensor()
+        self.logging = True
+
     @staticmethod
     def add_to_argparse(parser):
         parser.add_argument("--optimizer", type=str, default=OPTIMIZER, help="optimizer class from torch.optim")
@@ -79,30 +82,42 @@ class BaseLitModel(pl.LightningModule):  # pylint: disable=too-many-ancestors
         return self.model(x, **kwargs)
 
     def training_step(self, batch, batch_idx):  # pylint: disable=unused-argument
+        #print('training')
         x, y = batch
-        
         logits = self(x)
         loss = self.loss_fn(logits, y)
-        self.log("train_loss", loss,on_step=False, on_epoch=True,prog_bar=False)
         self.train_acc(logits, y)
-        self.log("train_acc", self.train_acc, on_step=False, on_epoch=True, prog_bar=False)
-        self.log("train_size", self.trainer.datamodule.get_ds_length('train'), on_step=False, on_epoch=True, prog_bar=False)
+
+        if self.logging:
+            self.log("train_loss", loss,on_step=False, on_epoch=True,prog_bar=False)
+            self.log("train_acc", self.train_acc, on_step=False, on_epoch=True, prog_bar=False)
+            self.log("train_size", self.trainer.datamodule.get_ds_length('train'), on_step=False, on_epoch=True, prog_bar=False)
+
         return loss
+
 
     def validation_step(self, batch, batch_idx):  # pylint: disable=unused-argument
         #print('validating ')
         x, y = batch
         logits = self(x)
         loss = self.loss_fn(logits, y)
-        self.log("val_loss", loss, on_step=False, on_epoch=True,prog_bar=False)
         self.val_acc(logits, y)
-        self.log("val_acc", self.val_acc, on_step=False, on_epoch=True, prog_bar=False)
-        self.log("train_size", self.trainer.datamodule.get_ds_length('train'), on_step=False, on_epoch=True, prog_bar=False)
+
+        if self.logging:
+            self.log("val_loss", loss, on_step=False, on_epoch=True,prog_bar=False)
+            self.log("val_acc", self.val_acc, on_step=False, on_epoch=True, prog_bar=False)
+            self.log("train_size", self.trainer.datamodule.get_ds_length('train'), on_step=False, on_epoch=True, prog_bar=False)
+
+        # reset predictions array
+        if len(self.val_predictions) in [0, 10778]:
+            self.val_predictions = logits.detach()
+        else:
+            self.val_predictions = torch.cat([self.val_predictions, logits.detach()])
+
 
     def reset_predictions(self):
         print('\nResetting Predictions\n')
         self.predictions=np.array([]) 
-         
 
     def test_step(self, batch, batch_idx):  # pylint: disable=unused-argument
         x, y = batch
@@ -113,11 +128,12 @@ class BaseLitModel(pl.LightningModule):  # pylint: disable=too-many-ancestors
         if self.predictions.shape[0]==0:
             self.predictions=preds.cpu().detach().numpy()
         else:  
-              
             self.predictions=np.vstack([self.predictions,preds.cpu().detach().numpy()])
 
         self.test_acc(logits, y)
-        self.log("test_acc", self.test_acc, on_step=False, on_epoch=True, prog_bar=False)
-        self.log("train_size", self.trainer.datamodule.get_ds_length('train'), on_step=False, on_epoch=True, prog_bar=False)
+        
+        if self.logging:
+            self.log("test_acc", self.test_acc, on_step=False, on_epoch=True, prog_bar=False)
+            self.log("train_size", self.trainer.datamodule.get_ds_length('train'), on_step=False, on_epoch=True, prog_bar=False)
       
 
