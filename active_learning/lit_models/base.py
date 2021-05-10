@@ -3,11 +3,32 @@ import pytorch_lightning as pl
 import torch
 import numpy as np
 
-
 OPTIMIZER = "Adam"
 LR = 1e-3
 LOSS = "cross_entropy"
 ONE_CYCLE_TOTAL_STEPS = 100
+
+class MaxAccuracyLogger(pl.callbacks.Callback):
+    """W&B does not yet provide the possibility to visualize the maximum (instead of last) logged metric, see
+    https://github.com/wandb/client/issues/736. This class helps us to keep track of the best accuracies over 
+    multiple epochs by always logging the maximum up to now.
+    """
+
+    train_acc_max = 0
+    val_acc_max = 0
+
+    def on_validation_epoch_end(self, trainer, pl_module):
+        metrics = trainer.callback_metrics
+
+        # hook is also called after initial "test" validation before any training, but does not contain our relevant metrics there
+        if "train_acc" in metrics:
+            self.train_acc_max = max(self.train_acc_max, metrics["train_acc"].item())
+            self.val_acc_max = max(self.val_acc_max, metrics["val_acc"].item())
+            train_size = trainer.datamodule.get_ds_length('train')
+
+            pl_module.log("train_acc_max", self.train_acc_max)
+            pl_module.log("val_acc_max", self.val_acc_max)
+            pl_module.log("train_size", train_size)
 
 
 class Accuracy(pl.metrics.Accuracy):
@@ -119,5 +140,3 @@ class BaseLitModel(pl.LightningModule):  # pylint: disable=too-many-ancestors
         self.test_acc(logits, y)
         self.log("test_acc", self.test_acc, on_step=False, on_epoch=True, prog_bar=False)
         self.log("train_size", self.trainer.datamodule.get_ds_length('train'), on_step=False, on_epoch=True, prog_bar=False)
-      
-
