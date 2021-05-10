@@ -13,9 +13,27 @@ Comparing different active learning strategies for image classification (FSDL co
         - [margin](#margin)
         - [ratio](#ratio)
         - [entropy](#entropy)
+        - [least_confidence_pt](#least_confidence_pt)
+        - [margin_pt](#margin_pt)
+        - [ratio_pt](#ratio_pt)
+        - [entropy_pt](#entropy_pt)
       - [Bayesian Uncertainty Sampling](#bayesian-uncertainty-sampling)
         - [bald](#bald)
         - [max_entropy](#max_entropy)
+        - [least_confidence_mc](#least_confidence_mc)
+        - [margin_mc](#margin_mc)
+        - [ratio_mc](#ratio_mc)
+        - [entropy_mc](#entropy_mc)
+      - [Diversity Sampling](#diversity-sampling)
+        - [mb_outliers_mean](#mb_outliers_mean)
+        - [mb_outliers_max](#mb_outliers_max)
+        - [mb_clustering](#mb_clustering)
+        - [mb_outliers_glosh](#mb_outliers_glosh)
+      - [Advanced Sampling Techniques](#advanced-sampling-techniques)
+        - [mb_outliers_mean_least_confidence](#mb_outliers_mean_least_confidence)
+        - [mb_outliers_mean_entropy](#mb_outliers_mean_entropy)
+        - [active_transfer_learning](#active_transfer_learning)
+        - [dal](#dal)
       - [Baseline](#baseline)
         - [random](#random)
     - [modAL Active Learning Experiment Running Framework](#modal-active-learning-experiment-running-framework)
@@ -65,11 +83,47 @@ The model can be used for transfer learning on the drought prediction data.
 
 ##### entropy
 
+##### least_confidence_pt
+
+##### margin_pt
+
+##### ratio_pt
+
+##### entropy_pt
+
 #### Bayesian Uncertainty Sampling
 
 ##### bald
 
 ##### max_entropy
+
+##### least_confidence_mc
+
+##### margin_mc
+
+##### ratio_mc
+
+##### entropy_mc
+
+#### Diversity Sampling
+
+##### mb_outliers_mean
+
+##### mb_outliers_max
+
+##### mb_clustering
+
+##### mb_outliers_glosh
+
+#### Advanced Sampling Techniques
+
+##### mb_outliers_mean_least_confidence
+
+##### mb_outliers_mean_entropy
+
+##### active_transfer_learning
+
+##### dal
 
 #### Baseline
 
