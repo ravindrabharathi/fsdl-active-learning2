@@ -153,9 +153,12 @@ class BaseLitModel(pl.LightningModule):  # pylint: disable=too-many-ancestors
 
         self.test_acc(logits, y)
 <<<<<<< HEAD
+<<<<<<< HEAD
         self.log("test_acc", self.test_acc, on_step=False, on_epoch=True, prog_bar=False)
         self.log("train_size", self.trainer.datamodule.get_ds_length('train'), on_step=False, on_epoch=True, prog_bar=False)
 =======
+=======
+>>>>>>> ea2679c5e7489dd528a97a4ae37557eea94d887f
         
         if self.logging:
             self.log("test_acc", self.test_acc, on_step=False, on_epoch=True, prog_bar=False)

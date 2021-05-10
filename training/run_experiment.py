@@ -11,10 +11,14 @@ from sklearn.model_selection import train_test_split
 
 from active_learning import lit_models
 <<<<<<< HEAD
+<<<<<<< HEAD
 from active_learning.lit_models.base import MaxAccuracyLogger
 =======
 from active_learning.data.util import BaseDataset
 >>>>>>> ea2679c... adding active transfer learning and DAL
+=======
+from active_learning.data.util import BaseDataset
+>>>>>>> ea2679c5e7489dd528a97a4ae37557eea94d887f
 
 # In order to ensure reproducible experiments, we must set random seeds.
 np.random.seed(42)
