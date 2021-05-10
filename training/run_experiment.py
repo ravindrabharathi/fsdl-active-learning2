@@ -261,6 +261,8 @@ def main():
             new_indices = sampling_class(out_layer_0, out_layer_1, out_layer_2, sample_size)
 
         elif sampling_method == "active_transfer_learning":
+            """Implementation of active transfer learning for uncertainty sampling from 
+            https://medium.com/pytorch/active-transfer-learning-with-pytorch-71ed889f08c1"""
 
             # get validation set predictions
             val_preds = torch.max(lit_model.val_predictions, dim=-1)[1]
@@ -273,10 +275,12 @@ def main():
             # get dataloaders
             new_train_dataloader, new_val_dataloader = _prepare_dataloaders(data.data_val.data, new_labels, data, args)
 
-            # run fine-tuning and sampling
+            # run fine-tuning and select samples that have highest probability of being incorrect
             new_indices = _finetune_and_sample(lit_model, data, new_train_dataloader, new_val_dataloader, sample_size, args)
 
         elif sampling_method == "DAL":
+            """Implementation of discriminative active learning from https://arxiv.org/abs/1907.06347
+            For speed up we only select a subsample of the larger dataset (train set or pool)"""
 
             # create equal sized sample from training set and unlabelled pool
             min_size = np.min([len(data.data_train.data), len(data.data_unlabelled.data)])
@@ -302,7 +306,7 @@ def main():
             # get dataloaders
             new_train_dataloader, new_val_dataloader = _prepare_dataloaders(new_data, new_labels, data, args)
 
-            # run fine-tuning and sampling
+            # run fine-tuning and select samples that have highest probability of being in the unlabelled pool
             new_indices = _finetune_and_sample(lit_model, data, new_train_dataloader, new_val_dataloader, sample_size, args)
 
         else:
