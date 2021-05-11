@@ -171,6 +171,7 @@ class DroughtWatch(BaseDataModule):
         )
         return basic + data
 
+'''
     def get_ds_length(self,ds_name='unlabelled'):
         
         if ds_name=='unlabelled':
@@ -306,6 +307,12 @@ class DroughtWatch(BaseDataModule):
         
         return all_outputs
 
+       
+def _enable_dropout(model):
+    for each_module in model.modules():
+        if each_module.__class__.__name__.startswith('Dropout'):
+            each_module.train()
+'''
 
 def _check_disk_dataset_availability(self):
 
@@ -447,11 +454,6 @@ def _process_raw_dataset(self, filename: str, dirname: Path):
     print("Cleaning up...")
     shutil.rmtree("droughtwatch_data")
     os.chdir(curdir)
-          
-def _enable_dropout(model):
-    for each_module in model.modules():
-        if each_module.__class__.__name__.startswith('Dropout'):
-            each_module.train()
 
 
 if __name__ == "__main__":

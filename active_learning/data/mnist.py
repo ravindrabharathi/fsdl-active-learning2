@@ -1,135 +1,108 @@
-"""Base DataModule class."""
-from pathlib import Path
-from typing import Collection, Dict, Optional, Tuple, Union
+"""MNIST DataModule"""
+from active_learning.data.util import BaseDataset, split_dataset
 import argparse
-import numpy as np
 
-import torch
-from torch.utils.data import ConcatDataset, DataLoader
-import pytorch_lightning as pl
+from torchvision.datasets import MNIST as TorchMNIST
+from torchvision import transforms
 
-from active_learning import util
-from active_learning.data.util import BaseDataset
+from active_learning.data.base_data_module import BaseDataModule, load_and_print_info
 
+DOWNLOADED_DATA_DIRNAME = BaseDataModule.data_dirname() / "downloaded"
 
-def load_and_print_info(data_module_class) -> None:
-    """Load EMNISTLines and print info."""
-    parser = argparse.ArgumentParser()
-    data_module_class.add_to_argparse(parser)
-    args = parser.parse_args()
-    dataset = data_module_class(args)
-    dataset.prepare_data()
-    dataset.setup()
-    print(dataset)
+# NOTE: temp fix until https://github.com/pytorch/vision/issues/1938 is resolved
+from six.moves import urllib  # pylint: disable=wrong-import-position, wrong-import-order
 
 
-def _download_raw_dataset(metadata: Dict, dl_dirname: Path) -> Path:
-    dl_dirname.mkdir(parents=True, exist_ok=True)
-    filename = dl_dirname / metadata["filename"]
-    if filename.exists():
-        return filename
-    print(f"Downloading raw dataset from {metadata['url']} to {filename}...")
-    util.download_url(metadata["url"], filename)
-    print("Computing SHA-256...")
-    sha256 = util.compute_sha256(filename)
-    if sha256 != metadata["sha256"]:
-        raise ValueError("Downloaded data file SHA-256 does not match that listed in metadata document.")
-    return filename
-
-
-BATCH_SIZE = 128
-NUM_WORKERS = 0
+N_TRAIN = 2000
+N_VAL = 10000
+BINARY = False
 DEBUG_OUTPUT = True
 
-class BaseDataModule(pl.LightningDataModule):
+
+class MNIST(BaseDataModule):
     """
-    Base DataModule.
+    MNIST DataModule.
     Learn more at https://pytorch-lightning.readthedocs.io/en/stable/extensions/datamodules.html
     """
-
-    def __init__(self, args: argparse.Namespace = None) -> None:
-        super().__init__()
-        self.args = vars(args) if args is not None else {}
-        self.batch_size = self.args.get("batch_size", BATCH_SIZE)
-        self.num_workers = self.args.get("num_workers", NUM_WORKERS)
-
-        self.on_gpu = isinstance(self.args.get("gpus", None), (str, int))
-
-        # Make sure to set the variables below in subclasses
-        self.dims: Tuple[int, ...]
-        self.output_dims: Tuple[int, ...]
-        self.mapping: Collection
-        self.data_train: Union[BaseDataset, ConcatDataset]
-        self.data_val: Union[BaseDataset, ConcatDataset]
-        self.data_test: Union[BaseDataset, ConcatDataset]
-        self.data_unlabelled=Union[BaseDataset,ConcatDataset]
-
-    @classmethod
-    def data_dirname(cls):
-        return Path(__file__).resolve().parents[2] / "data"
-
     @staticmethod
     def add_to_argparse(parser):
-        parser.add_argument(
-            "--batch_size", type=int, default=BATCH_SIZE, help="Number of examples to operate on per forward step."
-        )
-        parser.add_argument(
-            "--num_workers", type=int, default=NUM_WORKERS, help="Number of additional processes to load data."
-        )
+        BaseDataModule.add_to_argparse(parser)
+        parser.add_argument("--n_train_images", type=int, default=N_TRAIN)
+        parser.add_argument("--n_validation_images", type=int, default=N_VAL)
+        parser.add_argument("--reduced_pool", type=bool, default=False, help="Whether to take only a fraction of the pool (allows for faster results during development)")
         return parser
 
-    def config(self):
-        """Return important settings of the dataset, which will be passed to instantiate models."""
-        return {"input_dims": self.dims, "output_dims": self.output_dims, "mapping": self.mapping}
+    def __init__(self, args: argparse.Namespace) -> None:
+        super().__init__(args)
+
+        self.data_dir = DOWNLOADED_DATA_DIRNAME
+        self.n_train_images = self.args.get("n_train_images", N_TRAIN)
+        self.n_validation_images = self.args.get("n_validation_images", N_VAL)
+        self.binary = self.args.get("binary", BINARY)
+
+        self.transform = transforms.Compose([
+            transforms.Resize((224, 224)), 
+            transforms.ToTensor(), 
+            transforms.Normalize((0.1307,), (0.3081,))
+            ])
+
+        self.dims = (1, 64, 64) 
+        self.output_dims = (1,)
+        self.mapping = list(range(10))
+
+        self.prepare_data(args)
+        self.setup()
 
     def prepare_data(self, *args, **kwargs) -> None:
-        """
-        Use this method to do things that might write to disk or that need to be done only from a single GPU
-        in distributed settings (so don't set state `self.x = y`).
-        """
+        """Download train and test MNIST data from PyTorch canonical source."""
 
-    def setup(self, stage: Optional[str] = None) -> None:
-        """
-        Split into train, val, test, and set dims.
-        Should assign `torch Dataset` objects to self.data_train, self.data_val, and optionally self.data_test.
-        """
+        opener = urllib.request.build_opener()
+        opener.addheaders = [("User-agent", "Mozilla/5.0")]
+        urllib.request.install_opener(opener)
 
-    def train_dataloader(self):
-        return DataLoader(
-            self.data_train,
-            shuffle=True,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            pin_memory=self.on_gpu,
+        TorchMNIST(self.data_dir, train=True, download=True)
+        TorchMNIST(self.data_dir, train=False, download=True)
+
+    def setup(self, stage=None) -> None:
+        """Split into train, val, test and pool."""
+        mnist_full = TorchMNIST(self.data_dir, train=True, transform=self.transform) # transform=self.transform
+        mnist_full = BaseDataset(mnist_full.data.float().unsqueeze(0), mnist_full.targets)
+
+        val_fraction = self.n_validation_images/60000
+        pool_fraction = (60000-self.n_validation_images-self.n_train_images)/(60000-self.n_validation_images)
+
+        self.data_val, train_and_pool = split_dataset(mnist_full, val_fraction, seed = 43)
+
+        self.data_train, self.data_unlabelled = split_dataset(train_and_pool, pool_fraction, seed = 43)
+
+        data_test_mnist = TorchMNIST(self.data_dir, train=False, transform=self.transform) # transform=self.transform
+
+
+        #self.data_train = BaseDataModule(data_train_mnist, data_train_mnist.targets)
+        #self.data_val = BaseDataModule(data_val_mnist.data, data_val_mnist.targets)
+        self.data_test = BaseDataset(data_test_mnist.data.float().unsqueeze(0), data_test_mnist.targets)
+        #self.data_unlabelled = BaseDataModule(data_unlabelled_mnist.data, data_unlabelled_mnist.targets)
+
+        print(f"\nInitial training set size: {len(self.data_train)}")
+        print(f"Initial unlabelled pool size: {len(self.data_unlabelled)}")
+        print(f"Validation set size: {len(self.data_val)}\n")
+
+    def __repr__(self):
+        basic = f"MNIST Dataset\nDims: {self.dims}\n"
+        if self.data_train is None and self.data_val is None and self.data_test is None and self.data_unlabelled is None:
+            return basic
+
+        # deepcode ignore unguarded~next~call: call to just initialized train_dataloader always returns data
+        x, y = next(iter(self.train_dataloader()))
+        data = (
+            f"Train/val sizes: {len(self.data_train)}, {len(self.data_val)}\n"
+            f"Batch x stats: {(x.shape, x.dtype, x.min(), (x*1.0).mean(), (x*1.0).std(), x.max())}\n"
+            f"Batch y stats: {(y.shape, y.dtype, y.min(), y.max())}\n"
+            f"Pool size of labeled samples to do active learning from: {len(self.data_unlabelled)}\n"
         )
+        return basic + data
 
-    def val_dataloader(self):
-        return DataLoader(
-            self.data_val,
-            shuffle=False,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            pin_memory=self.on_gpu,
-        )
-
-    def test_dataloader(self):
-        return DataLoader(
-            self.data_test,
-            shuffle=False,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            pin_memory=self.on_gpu,
-        )
-
-    def unlabelled_dataloader(self):
-        return DataLoader(
-            self.data_unlabelled,
-            shuffle=False,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            pin_memory=self.on_gpu,
-        )    
-
+'''
     def get_ds_length(self ,ds_name='unlabelled'):
     
         if ds_name=='unlabelled':
@@ -269,3 +242,8 @@ def _enable_dropout(model):
     for each_module in model.modules():
         if each_module.__class__.__name__.startswith('Dropout'):
             each_module.train()
+'''
+
+
+if __name__ == "__main__":
+    load_and_print_info(MNIST)

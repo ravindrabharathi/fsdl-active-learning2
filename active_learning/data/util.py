@@ -1,7 +1,7 @@
 """Base Dataset class."""
 from typing import Any, Callable, Dict, Sequence, Tuple, Union
 import torch
-
+from torch.utils.data import random_split, DataLoader
 
 SequenceOrTensor = Union[Sequence, torch.Tensor]
 
@@ -90,6 +90,14 @@ def split_dataset(base_dataset: BaseDataset, fraction: float, seed: int) -> Tupl
     """
     split_a_size = int(fraction * len(base_dataset))
     split_b_size = len(base_dataset) - split_a_size
-    return torch.utils.data.random_split(  # type: ignore
-        base_dataset, [split_a_size, split_b_size], generator=torch.Generator().manual_seed(seed)
-    )
+
+    # split to PyTorch's Subset
+    subset1, subset2 =  random_split(base_dataset, [split_a_size, split_b_size], generator=torch.Generator().manual_seed(seed))
+
+    # convert PyTorch's Subset to our BaseDataset
+    dataset1_x, dataset1_y = next(iter(DataLoader(base_dataset, sampler=subset1.indices, batch_size=len(subset1.indices))))
+    dataset2_x, dataset2_y = next(iter(DataLoader(base_dataset, sampler=subset2.indices, batch_size=len(subset2.indices))))
+    dataset1 = BaseDataset(dataset1_x, dataset1_y)
+    dataset2 = BaseDataset(dataset2_x, dataset2_y)
+
+    return dataset1, dataset2
