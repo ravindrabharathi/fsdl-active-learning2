@@ -154,7 +154,7 @@ def _finetune_and_sample(lit_model, data, new_train_dataloader, new_val_dataload
 
     # initialize trainer
     early_stopping_callback = pl.callbacks.EarlyStopping(monitor="val_loss", mode="min", patience=2)
-    trainer = pl.Trainer(gpus=args.gpus, callbacks=[early_stopping_callback] progress_bar_refresh_rate=30, max_epochs=10, num_sanity_val_steps=0)
+    trainer = pl.Trainer(gpus=args.gpus, callbacks=[early_stopping_callback], progress_bar_refresh_rate=30, max_epochs=10, num_sanity_val_steps=0)
     trainer.tune(lit_model, train_dataloader=new_train_dataloader, val_dataloaders=new_val_dataloader)
 
     # fit trainer on new data
