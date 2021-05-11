@@ -34,13 +34,6 @@ class MNISTResnetClassifier(nn.Module):
         # base ResNet model
         self.resnet = torchvision.models.resnet50(pretrained=pretrained)
 
-        # preprocessing for MNIST
-        #self.preprocess = tt.Compose([
-        #    tt.ToTensor(), 
-        #    tt.Resize((224, 224)), 
-        #    tt.Normalize((0.1307,), (0.3081,))
-        #    ])
-
         # changing the architecture of the laster layers
         # if dropout is activated, add an additional fully connected layer with dropout before the last layer
         # split classification head into different parts to extract intermediate activations
@@ -70,13 +63,19 @@ class MNISTResnetClassifier(nn.Module):
             self.resnet.fc = nn.Linear(self.resnet.fc.in_features, n_classes)
 
         print("Adapting first convolutional layer to only one input channel\n")
-        self.resnet.conv1 = nn.Conv2d(
-            in_channels=1, 
-            out_channels=self.resnet.conv1.out_channels, 
-            kernel_size=(7, 7), 
-            stride=(2, 2), 
-            padding=(3, 3), 
-            bias=False)
+        existing_layer = self.resnet.conv1
+
+        new_layer = nn.Conv2d(in_channels=1, 
+            out_channels=existing_layer.out_channels, 
+            kernel_size=existing_layer.kernel_size, 
+            stride=existing_layer.stride, 
+            padding=existing_layer.padding,
+            bias=existing_layer.bias)
+
+        new_layer.weight[:, 0, :, :] = existing_layer.weight[:, 0, :, :].clone() # copying the weights from the old to the new layer
+        new_layer.weight = nn.Parameter(new_layer.weight)
+
+        self.resnet.conv1 = new_layer
 
 
     def forward(self, x: torch.Tensor, extract_intermediate_activations: bool = False) -> torch.Tensor:
@@ -94,7 +93,6 @@ class MNISTResnetClassifier(nn.Module):
         
             if extract_intermediate_activations:
 
-                #x = self.preprocess(x)
                 x = self.resnet(x)
                 y = self.head_part_1(x)
                 z = self.head_part_2(y)
@@ -103,7 +101,6 @@ class MNISTResnetClassifier(nn.Module):
 
             else:
 
-                #x = self.preprocess(x)
                 x = self.resnet(x)
                 x = self.head_part_1(x)
                 x = self.head_part_2(x)
@@ -112,8 +109,6 @@ class MNISTResnetClassifier(nn.Module):
             
         else:
 
-            #x = x.float()
-            #x = self.preprocess(x)
             x = self.resnet(x)
 
             return x

@@ -32,7 +32,7 @@ class BaseDataset(torch.utils.data.Dataset):
         target_transform: Callable = None,
     ) -> None:
         if len(data) != len(targets):
-            raise ValueError("Data and targets must be of equal length")
+            raise ValueError(f"Data and targets must be of equal length, but are {len(data)} and {len(targets)}")
         super().__init__()
         self.data = data
         self.targets = targets
@@ -81,23 +81,3 @@ def convert_strings_to_labels(strings: Sequence[str], mapping: Dict[str, int], l
         for ii, token in enumerate(tokens):
             labels[i, ii] = mapping[token]
     return labels
-
-
-def split_dataset(base_dataset: BaseDataset, fraction: float, seed: int) -> Tuple[BaseDataset, BaseDataset]:
-    """
-    Split input base_dataset into 2 base datasets, the first of size fraction * size of the base_dataset and the
-    other of size (1 - fraction) * size of the base_dataset.
-    """
-    split_a_size = int(fraction * len(base_dataset))
-    split_b_size = len(base_dataset) - split_a_size
-
-    # split to PyTorch's Subset
-    subset1, subset2 =  random_split(base_dataset, [split_a_size, split_b_size], generator=torch.Generator().manual_seed(seed))
-
-    # convert PyTorch's Subset to our BaseDataset
-    dataset1_x, dataset1_y = next(iter(DataLoader(base_dataset, sampler=subset1.indices, batch_size=len(subset1.indices))))
-    dataset2_x, dataset2_y = next(iter(DataLoader(base_dataset, sampler=subset2.indices, batch_size=len(subset2.indices))))
-    dataset1 = BaseDataset(dataset1_x, dataset1_y)
-    dataset2 = BaseDataset(dataset2_x, dataset2_y)
-
-    return dataset1, dataset2
