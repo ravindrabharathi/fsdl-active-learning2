@@ -48,6 +48,7 @@ def _setup_parser():
     parser.add_argument("--data_class", type=str, default="DroughtWatch")
     parser.add_argument("--model_class", type=str, default="ResnetClassifier")
     parser.add_argument("--load_checkpoint", type=str, default=None)
+    parser.add_argument("--early_stopping_patience", type=int, default=5, help="No. of epochs without improvement before stopping early")
 
     # Get the data and model classes, so that we can add their specific arguments
     temp_args, _ = parser.parse_known_args()
@@ -89,7 +90,7 @@ def _initialize_trainer(model_class, lit_model_class, data, args, logger, al_ite
         lit_model = lit_model_class(args=args, model=model)
 
     # initialize callbacks
-    early_stopping_callback = pl.callbacks.EarlyStopping(monitor="val_acc", mode="max", patience=5)
+    early_stopping_callback = pl.callbacks.EarlyStopping(monitor="val_f1", mode="max", patience=args.early_stopping_patience)
     model_checkpoint_callback = pl.callbacks.ModelCheckpoint(
         filename="{epoch:03d}-{val_loss:.3f}-{val_cer:.3f}", monitor="val_loss", mode="min"
     )
@@ -153,7 +154,7 @@ def _finetune_and_sample(lit_model, data, new_train_dataloader, new_val_dataload
 
     # initialize trainer
     early_stopping_callback = pl.callbacks.EarlyStopping(monitor="val_loss", mode="min", patience=2)
-    trainer = pl.Trainer(gpus=args.gpus, progress_bar_refresh_rate=30, max_epochs=10, num_sanity_val_steps=0)
+    trainer = pl.Trainer(gpus=args.gpus, callbacks=[early_stopping_callback], progress_bar_refresh_rate=30, max_epochs=10, num_sanity_val_steps=0)
     trainer.tune(lit_model, train_dataloader=new_train_dataloader, val_dataloaders=new_val_dataloader)
 
     # fit trainer on new data

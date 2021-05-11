@@ -104,9 +104,9 @@ class BaseLitModel(pl.LightningModule):  # pylint: disable=too-many-ancestors
         self.val_acc = Accuracy()
         self.test_acc = Accuracy()
 
-        self.train_f1 = F1_Score(num_classes=num_classes)
-        self.val_f1 = F1_Score(num_classes=num_classes)
-        self.test_f1 = F1_Score(num_classes=num_classes)
+        self.train_f1 = F1_Score(num_classes=num_classes, average='macro')
+        self.val_f1 = F1_Score(num_classes=num_classes, average='macro')
+        self.test_f1 = F1_Score(num_classes=num_classes, average='macro')
 
         self.predictions = np.array([])
         self.train_size = 0
@@ -139,8 +139,9 @@ class BaseLitModel(pl.LightningModule):  # pylint: disable=too-many-ancestors
         
         logits = self(x)
         loss = self.loss_fn(logits, y)
-        self.train_acc(logits, y)
-        self.train_f1(logits, y)
+        preds = torch.nn.functional.softmax(logits, dim=-1)
+        self.train_acc(preds, y)
+        self.train_f1(preds, y)
 
         if self.logging:
             self.log("train_loss", loss,on_step=False, on_epoch=True,prog_bar=False)
@@ -155,8 +156,9 @@ class BaseLitModel(pl.LightningModule):  # pylint: disable=too-many-ancestors
         x, y = batch
         logits = self(x)
         loss = self.loss_fn(logits, y)
-        self.val_acc(logits, y)
-        self.val_f1(logits, y)
+        preds = torch.nn.functional.softmax(logits, dim=-1)
+        self.val_acc(preds, y)
+        self.val_f1(preds, y)
 
         if self.logging:
             self.log("val_loss", loss, on_step=False, on_epoch=True,prog_bar=False)
@@ -178,10 +180,9 @@ class BaseLitModel(pl.LightningModule):  # pylint: disable=too-many-ancestors
     def test_step(self, batch, batch_idx):  # pylint: disable=unused-argument
         x, y = batch
         logits = self(x)
-        self.test_acc(logits, y)
-        self.test_f1(logits, y)
-        
         preds = torch.nn.functional.softmax(logits, dim=-1)
+        self.test_acc(preds, y)
+        self.test_f1(preds, y)
         
         if self.predictions.shape[0]==0:
             self.predictions=preds.cpu().detach().numpy()
