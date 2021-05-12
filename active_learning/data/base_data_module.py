@@ -52,6 +52,7 @@ class BaseDataModule(pl.LightningDataModule):
         self.args = vars(args) if args is not None else {}
         self.batch_size = self.args.get("batch_size", BATCH_SIZE)
         self.num_workers = self.args.get("num_workers", NUM_WORKERS)
+        self.reduced_pool = self.args.get("reduced_pool", False)
 
         self.on_gpu = isinstance(self.args.get("gpus", None), (str, int))
 
@@ -76,6 +77,8 @@ class BaseDataModule(pl.LightningDataModule):
         parser.add_argument(
             "--num_workers", type=int, default=NUM_WORKERS, help="Number of additional processes to load data."
         )
+        parser.add_argument("--reduced_pool", type=bool, default=False, help="Whether to take only a fraction of the pool (allows for faster results during development)")
+
         return parser
 
     def config(self):

@@ -48,7 +48,6 @@ class DroughtWatch(BaseDataModule):
         parser.add_argument("--bands", type=str, default=",".join(BANDS))
         parser.add_argument('--binary', action='store_true', help="Whether to run binary classification experiment (default is multi-class)")
         parser.add_argument('--rgb', action='store_true', help="Whether to include RGB channels only (default is all 11 channels)")
-        parser.add_argument("--reduced_pool", type=bool, default=False, help="Whether to take only a fraction of the pool (allows for faster results during development)")
         return parser
 
     def __init__(self, args=None):
@@ -59,7 +58,6 @@ class DroughtWatch(BaseDataModule):
         self.bands = self.args.get("--bands", ",".join(BANDS)).split(",")
         self.binary = self.args.get("binary", BINARY)
         self.rgb = self.args.get("rgb", RGB)
-        self.reduced_pool = self.args.get("reduced_pool", False)
 
         _check_disk_dataset_availability(self)
 

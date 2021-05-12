@@ -31,7 +31,6 @@ class MNIST(BaseDataModule):
         BaseDataModule.add_to_argparse(parser)
         parser.add_argument("--n_train_images", type=int, default=N_TRAIN)
         parser.add_argument("--n_validation_images", type=int, default=N_VAL)
-        parser.add_argument("--reduced_pool", type=bool, default=False, help="Whether to take only a fraction of the pool (allows for faster results during development)")
         return parser
 
 
