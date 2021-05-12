@@ -1,7 +1,7 @@
 """Base Dataset class."""
 from typing import Any, Callable, Dict, Sequence, Tuple, Union
 import torch
-
+from torch.utils.data import random_split, DataLoader
 
 SequenceOrTensor = Union[Sequence, torch.Tensor]
 
@@ -32,7 +32,7 @@ class BaseDataset(torch.utils.data.Dataset):
         target_transform: Callable = None,
     ) -> None:
         if len(data) != len(targets):
-            raise ValueError("Data and targets must be of equal length")
+            raise ValueError(f"Data and targets must be of equal length, but are {len(data)} and {len(targets)}")
         super().__init__()
         self.data = data
         self.targets = targets
@@ -81,15 +81,3 @@ def convert_strings_to_labels(strings: Sequence[str], mapping: Dict[str, int], l
         for ii, token in enumerate(tokens):
             labels[i, ii] = mapping[token]
     return labels
-
-
-def split_dataset(base_dataset: BaseDataset, fraction: float, seed: int) -> Tuple[BaseDataset, BaseDataset]:
-    """
-    Split input base_dataset into 2 base datasets, the first of size fraction * size of the base_dataset and the
-    other of size (1 - fraction) * size of the base_dataset.
-    """
-    split_a_size = int(fraction * len(base_dataset))
-    split_b_size = len(base_dataset) - split_a_size
-    return torch.utils.data.random_split(  # type: ignore
-        base_dataset, [split_a_size, split_b_size], generator=torch.Generator().manual_seed(seed)
-    )

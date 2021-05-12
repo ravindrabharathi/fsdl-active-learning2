@@ -95,10 +95,12 @@ class BaseLitModel(pl.LightningModule):  # pylint: disable=too-many-ancestors
         self.one_cycle_total_steps = self.args.get("one_cycle_total_steps", ONE_CYCLE_TOTAL_STEPS)
         
         binary = self.args.get("binary", False)
+
         if binary:
             num_classes = 2
         else:
-            num_classes = 4
+            assert self.args.get("n_classes") is not None, "Neither 'binary' nor args parameter 'n_classes' was passed to BaseLitModel"
+            num_classes = self.args.get("n_classes")
 
         self.train_acc = Accuracy()
         self.val_acc = Accuracy()
