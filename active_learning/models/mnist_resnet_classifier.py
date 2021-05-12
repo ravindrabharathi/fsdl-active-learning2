@@ -26,6 +26,11 @@ class MNISTResnetClassifier(nn.Module):
         self.dropout = self.args.get("dropout", DROPOUT)
         binary = self.args.get("binary", BINARY)
 
+        self.preprocess = tt.Compose([
+                    tt.Resize(224),
+                    tt.Normalize(mean=33.3184/225, std=78.5675/225) # MNIST-train specific calculated via TorchMNIST(...).data.float().mean() / .std()
+                ])
+
         # override values if binary is specified
         if binary == True:
             n_classes = 2
@@ -89,11 +94,15 @@ class MNISTResnetClassifier(nn.Module):
         torch.Tensor
             (B, C) tensor
         """
+
+        x = self.preprocess(x)
+        #assert x.shape[1:] == torch.Size([1, 224, 224]), f"invalid x_processed shape: {x.shape[1:]}"
+        x = self.resnet(x)
+
         if self.dropout:
         
             if extract_intermediate_activations:
-
-                x = self.resnet(x)
+                
                 y = self.head_part_1(x)
                 z = self.head_part_2(y)
 
@@ -101,15 +110,12 @@ class MNISTResnetClassifier(nn.Module):
 
             else:
 
-                x = self.resnet(x)
                 x = self.head_part_1(x)
                 x = self.head_part_2(x)
 
                 return x
             
         else:
-
-            x = self.resnet(x)
 
             return x
 

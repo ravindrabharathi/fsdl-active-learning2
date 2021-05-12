@@ -1,8 +1,8 @@
 """MNIST DataModule"""
 from torch.utils.data.dataloader import DataLoader
-from torch.utils.data.dataset import random_split
 from active_learning.data.util import BaseDataset
 import argparse
+import numpy as np
 
 import torch
 from torchvision.datasets import MNIST as TorchMNIST
@@ -25,6 +25,7 @@ class MNIST(BaseDataModule):
     MNIST DataModule.
     Learn more at https://pytorch-lightning.readthedocs.io/en/stable/extensions/datamodules.html
     """
+
     @staticmethod
     def add_to_argparse(parser):
         BaseDataModule.add_to_argparse(parser)
@@ -32,6 +33,7 @@ class MNIST(BaseDataModule):
         parser.add_argument("--n_validation_images", type=int, default=N_VAL)
         parser.add_argument("--reduced_pool", type=bool, default=False, help="Whether to take only a fraction of the pool (allows for faster results during development)")
         return parser
+
 
     def __init__(self, args: argparse.Namespace) -> None:
         super().__init__(args)
@@ -50,6 +52,7 @@ class MNIST(BaseDataModule):
         self.prepare_data(args)
         self.init_setup(args)
 
+
     def prepare_data(self, *args, **kwargs) -> None:
         """Download train and test MNIST data from PyTorch canonical source."""
 
@@ -60,52 +63,45 @@ class MNIST(BaseDataModule):
         TorchMNIST(self.data_dir, train=True, download=True)
         TorchMNIST(self.data_dir, train=False, download=True)
 
+
     def init_setup(self, args: argparse.Namespace, stage=None) -> None:
         """Split into train, val, test and pool."""
 
         # load train set initially to calculate mean/std for normalization
         mnist = TorchMNIST(self.data_dir, train=True).data.float()
 
-        # define transformation to normalize data
         transform = transforms.Compose([
-            transforms.Resize((224, 224)), 
             transforms.ToTensor(), 
-            transforms.Normalize(mean=mnist.mean()/255, std=mnist.std()/255)
             ])
-        
-        # load MNIST train dataset with transformation
+
+        # load MNIST train dataset with transformation and convert to numpy
         mnist_full = TorchMNIST(self.data_dir, train=True, transform=transform)
+        mnist_x = next(iter(DataLoader(mnist_full, batch_size=len(mnist_full))))[0].numpy()
+        mnist_y = next(iter(DataLoader(mnist_full, batch_size=len(mnist_full))))[1].numpy()
 
-        # randomly divide into val / train_pool
-        data_val_subset, train_pool_subset = random_split(mnist_full, [self.n_validation_images, 60000-self.n_validation_images])
+        # take train sample and delete from remaining pool
+        train_sample = np.random.choice(len(mnist_y), self.n_train_images, replace=False)
+        self.data_train = BaseDataset(mnist_x[train_sample], mnist_y[train_sample])
+        mnist_x = np.delete(mnist_x, train_sample, axis=0)
+        mnist_y = np.delete(mnist_y, train_sample, axis=0)
 
-        # convert to DataLoaders and extract data
-        data_val_x, data_val_y = next(iter(DataLoader(mnist_full, sampler=data_val_subset.indices, batch_size=len(data_val_subset.indices))))
-        self.data_val = BaseDataset(data_val_x, data_val_y)
-        train_pool_x, train_pool_y = next(iter(DataLoader(mnist_full, sampler=train_pool_subset.indices, batch_size=len(train_pool_subset.indices))))
+        # take val sample and delete from remaining pool
+        val_sample = np.random.choice(len(mnist_y), self.n_validation_images, replace=False)
+        self.data_val = BaseDataset(mnist_x[val_sample], mnist_y[val_sample])
+        mnist_x = np.delete(mnist_x, val_sample, axis=0)
+        mnist_y = np.delete(mnist_y, val_sample, axis=0)
 
-        # create dataset from train_pool
-        train_pool = BaseDataset(train_pool_x, train_pool_y)
-
-        # randomly divide into train / pool
-        data_train_subset, data_pool_subset = random_split(train_pool, [self.n_train_images, 60000-self.n_validation_images-self.n_train_images])
-
-        # convert to DataLoaders and extract data
-        data_train_x, data_train_y = next(iter(DataLoader(train_pool, sampler=data_train_subset.indices, batch_size=len(data_train_subset.indices))))
-        self.data_train = BaseDataset(data_train_x, data_train_y)
-        data_unlabelled_x, data_unlabelled_y = next(iter(DataLoader(train_pool, sampler=data_pool_subset.indices, batch_size=len(data_pool_subset.indices))))
-        self.data_unlabelled = BaseDataset(data_unlabelled_x, data_unlabelled_y)
-
-        # load test dataset
-        self.data_test = TorchMNIST(self.data_dir, train=False, transform=transform)
+        # assign remaining pool as unlabelled & test
+        self.data_unlabelled = BaseDataset(mnist_x, mnist_y)
+        self.data_test = self.data_unlabelled
 
         print(f"\nInitial training set size: {len(self.data_train)} - shape: {self.data_train.data.shape}")
         print(f"Initial unlabelled pool size: {len(self.data_unlabelled)} - shape: {self.data_unlabelled.data.shape}")
         print(f"Validation set size: {len(self.data_val)} - shape: {self.data_val.data.shape}\n")
 
-        assert self.data_train.data.shape[1:] == torch.Size([1, 224, 224]), f"invalid data_train shape: {self.data_train.data.shape[1:]}"
-        assert self.data_val.data.shape[1:] == torch.Size([1, 224, 224]), f"invalid data_val shape: {self.data_val.data.shape[1:]}"
-        assert self.data_unlabelled.data.shape[1:] == torch.Size([1, 224, 224]), f"invalid data_unlabelled shape: {self.data_unlabelled.data.shape[1:]}"
+        assert self.data_train.data.shape[1:] == torch.Size([1, 28, 28]), f"invalid data_train shape: {self.data_train.data.shape[1:]}"
+        assert self.data_val.data.shape[1:] == torch.Size([1, 28, 28]), f"invalid data_val shape: {self.data_val.data.shape[1:]}"
+        assert self.data_unlabelled.data.shape[1:] == torch.Size([1, 28, 28]), f"invalid data_unlabelled shape: {self.data_unlabelled.data.shape[1:]}"
 
 
     def __repr__(self):
