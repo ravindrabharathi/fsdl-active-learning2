@@ -5,189 +5,139 @@ Comparing different active learning strategies for image classification (FSDL co
 - [fsdl-active-learning](#fsdl-active-learning)
   - [Introduction](#introduction)
   - [Relevant Changes Compared to Lab Template](#relevant-changes-compared-to-lab-template)
-    - [DroughtWatch Data Set](#droughtwatch-data-set)
-    - [ResNet Image Classifier](#resnet-image-classifier)
-    - [Main Active Learning Experiment Running Framework](#main-active-learning-experiment-running-framework)
-      - [Uncertainty Sampling](#uncertainty-sampling)
-        - [least_confidence](#least_confidence)
-        - [margin](#margin)
-        - [ratio](#ratio)
-        - [entropy](#entropy)
-        - [least_confidence_pt](#least_confidence_pt)
-        - [margin_pt](#margin_pt)
-        - [ratio_pt](#ratio_pt)
-        - [entropy_pt](#entropy_pt)
-      - [Bayesian Uncertainty Sampling](#bayesian-uncertainty-sampling)
-        - [bald](#bald)
-        - [max_entropy](#max_entropy)
-        - [least_confidence_mc](#least_confidence_mc)
-        - [margin_mc](#margin_mc)
-        - [ratio_mc](#ratio_mc)
-        - [entropy_mc](#entropy_mc)
-      - [Diversity Sampling](#diversity-sampling)
-        - [mb_outliers_mean](#mb_outliers_mean)
-        - [mb_outliers_max](#mb_outliers_max)
-        - [mb_clustering](#mb_clustering)
-        - [mb_outliers_glosh](#mb_outliers_glosh)
-      - [Advanced Sampling Techniques](#advanced-sampling-techniques)
-        - [mb_outliers_mean_least_confidence](#mb_outliers_mean_least_confidence)
-        - [mb_outliers_mean_entropy](#mb_outliers_mean_entropy)
-        - [active_transfer_learning](#active_transfer_learning)
-        - [dal](#dal)
-      - [Baseline](#baseline)
-        - [random](#random)
-    - [modAL Active Learning Experiment Running Framework](#modal-active-learning-experiment-running-framework)
-      - [Bayesian Uncertainty Sampling](#bayesian-uncertainty-sampling-1)
-        - [bald](#bald-1)
-        - [max_entropy](#max_entropy-1)
-      - [Diversity Sampling](#diversity-sampling)
-        - [outlier](#outlier)
-        - [cluster_outlier_combined](#cluster_outlier_combined)
-      - [Baseline](#baseline-1)
-        - [random](#random-1)
   - [Quickstart](#quickstart)
     - [Local](#local)
     - [Google Colab](#google-colab)
+  - [Documentation](#documentation)
 
 ## Introduction
 
-This repository builds upon the template of **lab 08** of the [Full Stack Deep Learning Spring 2021 labs](https://github.com/full-stack-deep-learning/fsdl-text-recognizer-2021-labs) and extends it with a new dataset, model and active learning strategies.
+This repository builds upon the template of **lab 08** of the [Full Stack Deep Learning Spring 2021 labs](https://github.com/full-stack-deep-learning/fsdl-text-recognizer-2021-labs) and extends it with new datasets, models and a full active learning strategy experiment framework.
+
+It was implemented as capstone project for the Spring course 2021 by [Stefan Josef](https://www.linkedin.com/in/stefan-j-7a5a6b120/), [Matthias Pfenninger](https://www.linkedin.com/in/matthiaspfenninger/) and [Ravindra Bharati](https://www.linkedin.com/in/sravindrabharathi/).
 
 ## Relevant Changes Compared to Lab Template
 
-### DroughtWatch Data Set
+**Datasets**: [DroughtWatch](https://github.com/wandb/droughtwatch) and [MNIST](https://en.wikipedia.org/wiki/MNIST_database)
 
-[text_recognizer/data/droughtwatch.py](./text_recognizer/data/droughtwatch.py): Downloads data from the [W&B Drought Prediction Benchmark](https://github.com/wandb/droughtwatch) and converts it to HDF5 format which can be used by PyTorch for training and inference.
+**Models**: PyTorch's [ResNet50](https://pytorch.org/hub/pytorch_vision_resnet/) extended with own input and output layers for both datasets mentioned above
 
-### ResNet Image Classifier
+**Active learning experiment frameworks**: Self-developed extension of the course's BaseDataModule that builds on top of a PyTorch's LightningDataModule (see [training/run_experiment.py](./training/run_experiment.py)) and separate experiment routine that uses the [modAL library](https://github.com/modAL-python/modAL) (see [training/run_modal_experiment.py](./training/run_modal_experiment.py))
 
-[text_recognizer/models/resnet_classifier.py](./text_recognizer/models/resnet_classifier.py): Implements a PyTorch ResNet model for image classification, with the following adaptions compared to the regular model:
+**Active learning sampling strategies**: The following sampling strategies are available:
 
-- preprocessing steps (image resizing and normalization)
-- class outputs (4 instead of 1000)
-- optional dropout layer at the end
-
-The model can be used for transfer learning on the drought prediction data.
-
-### Main Active Learning Experiment Running Framework
-
-[training/run_experiment.py](./training/run_experiment.py): Script to run experiments for model training with different active learning strategies which are implemented in the separate submodule [active_learning/sampling/al_sampler.py](./active_learning/sampling/al_sampler.py).
-
-#### Uncertainty Sampling
-
-##### least_confidence
-
-##### margin
-
-##### ratio
-
-##### entropy
-
-##### least_confidence_pt
-
-##### margin_pt
-
-##### ratio_pt
-
-##### entropy_pt
-
-#### Bayesian Uncertainty Sampling
-
-##### bald
-
-##### max_entropy
-
-##### least_confidence_mc
-
-##### margin_mc
-
-##### ratio_mc
-
-##### entropy_mc
-
-#### Diversity Sampling
-
-##### mb_outliers_mean
-
-##### mb_outliers_max
-
-##### mb_clustering
-
-##### mb_outliers_glosh
-
-#### Advanced Sampling Techniques
-
-##### mb_outliers_mean_least_confidence
-
-##### mb_outliers_mean_entropy
-
-##### active_transfer_learning
-
-##### dal
-
-#### Baseline
-
-##### random
-
-### modAL Active Learning Experiment Running Framework
-
-[training/run_modAL_experiment.py](./training/run_modal_experiment.py): Script to run experiments for model training with different active learning strategies which are implemented via the [modAL library](https://github.com/modAL-python/modAL). The modAL extensions are bundled under the submodule [active_learning/sampling/modal_extensions.py](./active_learning/sampling/modal_extensions.py).
-
-Note that the strategies `bald` and `max_entropy` only make sense when there is a `dropout` layer in the network.
-
-#### Bayesian Uncertainty Sampling
-
-##### bald
-
-Active learning sampling technique that maximizes the information gain via maximising mutual information between predictions and model posterior (Bayesian Active Learning by Disagreement - BALD) as depicted in the papers [Deep Bayesian Active Learning with Image Data](https://arxiv.org/pdf/1703.02910.pdf) and [Bayesian Active Learning for Classification and Preference Learning](https://arxiv.org/pdf/1112.5745.pdf).
-
-##### max_entropy
-
-Active learning sampling technique that maximizes the predictive entropy based on the paper [Deep Bayesian Active Learning with Image Data](https://arxiv.org/pdf/1703.02910.pdf).
-
-#### Diversity Sampling
-
-##### outlier
-
-Self-developed outlier sampling technique:
-
-1. Translates instances from the pool to features by tapping into an intermediate layer of the adapted ResNet model
-2. Performs clustering via HDBSCAN and assigns an outlier score to each instance via GLOSH
-3. Samples instances with highest outlier scores
-
-##### cluster_outlier_combined
-
-Self-developed diversity sampling technique that combines clustering and outliers:
-
-1. Translates instances from the pool to features by tapping into an intermediate layer of the adapted ResNet model
-2. Performs clustering via HDBSCAN and additionally assigns an outlier score to each instance via GLOSH
-3. Samples instances evenly from all clusters, and takes both outlier and non-outlier points by considering the outlier score
-
-#### Baseline
-
-##### random
-
-Baseline active learning sampling technique that takes random instances from available pool.
+- Uncertainty Sampling
+  - least_confidence
+  - margin
+  - ratio
+  - entropy
+  - least_confidence_pt
+  - margin_ptmargin_pt
+  - ratio_pt
+  - entropy_pt
+- Bayesian Uncertainty Sampling
+  - bald
+  - max_entropy
+  - least_confidence_mc
+  - margin_mc
+  - ratio_mc
+  - entropy_mc
+- Diversity Sampling
+  - mb_outliers_mean
+  - mb_outliers_max
+  - mb_clustering
+  - mb_outliers_glosh
+- Mixed Sampling
+  - mb_outliers_mean_least_confidence
+  - mb_outliers_mean_entropy
+- Other Advanced Strategies
+  - active_transfer_learning
+  - dal
+- Baseline
+  - random
 
 ## Quickstart
 
 ### Local
 
 ```bash
-git pull [repo-url] # clone from git
-cd [folder]
+git pull https://github.com/ravindrabharathi/fsdl-active-learning2 # clone from git
+cd fsdl-active-learning2
 
 make conda-update # creates a conda env with the base packages
 conda activate fsdl-active-learning-2021 # activates the conda env
 make pip-tools # installs required pip packages inside the conda env
 
-# active learning experiment
-python training/run_experiment.py --sampling_method=max_entropy --data_class=DroughtWatch --model_class=ResnetClassifier --batch_size=64 --gpus=1 --max_epochs=20
+# active learning experiment with DroughtWatch
+python training/run_experiment.py \
+  --sampling_method=active_transfer_learning \
+  --data_class=DroughtWatch \
+  --model_class=ResnetClassifier \
+  --n_train_images=1000 \
+  --al_samples_per_iter=500 \
+  --al_iter=20 \
+  --max_epochs=20 \
+  --pretrained=True \
+  --binary \
+  --rgb \
+  --lr=3e-4 \
+  --gpus=1 \
+  --wandb
 
-# active learning experiment with modAL
-python training/run_modaL_experiment.py --al_epochs_init=10 --al_epochs_incr=10 --al_n_iter=20 --al_samples_per_iter=2000 --al_incr_onlynew=False --al_query_strategy=bald --data_class=DroughtWatch --model_class=ResnetClassifier --batch_size=64 --n_train_images=20000 --n_validation_images=10778  --pretrained=True --wandb
+# active learning experiment with MNIST
+python training/run_experiment.py \
+  --data_class=MNIST \
+  --model_class=MNISTResnetClassifier \
+  --gpus=1 \
+  --wandb
+
+# active learning experiment via modAL framework
+python training/run_modal_experiment.py \
+  --data_class=DroughtWatch \
+  --model_class=ResnetClassifier \
+  --al_query_strategy=margin_sampling
+  --gpus=1 \
+  --wandb
+
 ```
 
 ### Google Colab
 
-Refer to the example notebook under [notebooks folder](./notebooks).
+```bash
+# clone project from github
+!git clone https://github.com/ravindrabharathi/fsdl-active-learning2
+%cd fsdl-active-learning2
+```
+
+```bash
+# install necessary packages and add library directory to your pythonpath
+!pip3 install boltons wandb pytorch_lightning==1.2.8 pip install torch==1.7.1+cu110 torchvision==0.8.2+cu110 torchaudio==0.7.2 torchtext==0.8.1 -f https://download.pytorch.org/whl/torch_stable.html
+!pip3 install modAL tensorflow skorch hdbscan
+
+%env PYTHONPATH=.:$PYTHONPATH
+```
+
+```bash
+# initialize w&b with your personal info
+!wandb login your_wandb_key
+!wandb init --project your_wandb_project --entity your_wandb_entity #
+```
+
+```bash
+# start experimenting
+!python training/run_experiment.py \
+  --data_class=MNIST \
+  --model_class=MNISTResnetClassifier \
+  --gpus=1 \
+  --wandb
+```
+
+For more examples refer to the notebooks in the [notebooks folder](./notebooks).
+
+## Documentation
+
+For more details please refer to the [documentation and detailed project report](./docs).
+
+## Contributing
+
+We are happy if you want to contribute. Contact us on LinkedIn (see links above) if you want to discuss anything or open an issue here in the repository.
