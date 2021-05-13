@@ -169,7 +169,7 @@ class BaseLitModel(pl.LightningModule):  # pylint: disable=too-many-ancestors
             self.log("train_size", self.trainer.datamodule.get_ds_length('train'), on_step=False, on_epoch=True, prog_bar=False)
 
         # store validation predictions
-        if len(self.val_predictions) in [0, 10778]:
+        if len(self.val_predictions) in [0, 10000]:
             self.val_predictions = logits.detach()
         else:
             self.val_predictions = torch.cat([self.val_predictions, logits.detach()])
