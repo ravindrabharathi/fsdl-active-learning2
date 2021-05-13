@@ -13,6 +13,7 @@ DROPOUT_PROB = 0.5
 DROPOUT_HIDDEN_DIM = 512
 BINARY = False
 RGB = False
+PRETRAINED = False
 
 class ResnetClassifier(nn.Module):
     """Classify an image of arbitrary size through a (pretrained) ResNet network"""
