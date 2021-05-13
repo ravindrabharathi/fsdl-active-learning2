@@ -4,9 +4,8 @@ import torch
 import torch.nn as nn
 import torchvision.transforms as tt
 import torchvision
-import warnings
 
-PRETRAINED = True
+PRETRAINED = False
 NUM_CLASSES = 10
 NUM_CHANNELS = 11
 DROPOUT = True
@@ -96,7 +95,6 @@ class MNISTResnetClassifier(nn.Module):
         """
 
         x = self.preprocess(x)
-        #assert x.shape[1:] == torch.Size([1, 224, 224]), f"invalid x_processed shape: {x.shape[1:]}"
         x = self.resnet(x)
 
         if self.dropout:
@@ -120,7 +118,7 @@ class MNISTResnetClassifier(nn.Module):
             return x
 
     def add_to_argparse(parser):
-        parser.add_argument("--pretrained", type=bool, default=PRETRAINED)
+        parser.add_argument("--pretrained", action="store_true", default=PRETRAINED)
         parser.add_argument("--n_classes", type=int, default=NUM_CLASSES)
         parser.add_argument("--dropout", type=bool, default=DROPOUT)
         return parser
