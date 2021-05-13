@@ -6,7 +6,6 @@ import torchvision.transforms as tt
 import torchvision
 import warnings
 
-PRETRAINED = True
 NUM_CLASSES = 4
 NUM_CHANNELS = 11
 DROPOUT = True
@@ -154,7 +153,7 @@ class ResnetClassifier(nn.Module):
             return x
 
     def add_to_argparse(parser):
-        parser.add_argument("--pretrained", action="store_true", default=PRETRAINED)
+        parser.add_argument("--pretrained", action="store_true", default=False)
         parser.add_argument("--n_classes", type=int, default=NUM_CLASSES)
         parser.add_argument("--n_channels", type=int, default=NUM_CHANNELS)
         parser.add_argument("--dropout", type=bool, default=DROPOUT)
