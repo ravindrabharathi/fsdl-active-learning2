@@ -26,4 +26,3 @@ from .resnet_transformer import ResnetTransformer
 # added by active-learning-project
 from .resnet_classifier import ResnetClassifier
 from .resnet_classifier2 import ResnetClassifier2
-from .resnet_classifier3 import ResnetClassifier3
