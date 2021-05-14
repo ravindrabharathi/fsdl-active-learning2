@@ -98,7 +98,7 @@ class BaseLitModel(pl.LightningModule):  # pylint: disable=too-many-ancestors
         if binary:
             num_classes = 2
         else:
-            num_classes = 4
+            num_classes = self.model.get_num_classes() #get the number of classes from the model
 
         self.train_acc = Accuracy()
         self.val_acc = Accuracy()
