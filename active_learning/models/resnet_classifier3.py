@@ -35,7 +35,7 @@ class ResnetClassifier3(nn.Module):
             print("Overriding n_classes parameter, setting n_classes to 2")
         if rgb == True:
             n_channels = 3
-            print("Overriding n_channels parameter, setting n_channels to 3\n")
+            print("setting n_channels to 3\n")
 
         # base ResNet model
         self.resnet = torchvision.models.resnet50(pretrained=pretrained)
