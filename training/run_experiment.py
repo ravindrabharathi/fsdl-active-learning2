@@ -212,7 +212,7 @@ def main():
 
     # --wandb args parameter ignored for now, always using wandb
     # specify project & entity outside of code, example: wandb init --project fdsl-active-learning --entity fsdl_active_learners
-    project_name = "fsdl-active-learning_" + sampling_method + "_"+ args.data_class+ class_scenario + channel_scenario
+    project_name = "fsdl-active-learning_" + "_" + args.data_class + sampling_method +  class_scenario + channel_scenario
     logger = pl.loggers.WandbLogger(name=project_name, job_type="train") 
     logger.log_hyperparams(vars(args))
 
