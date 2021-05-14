@@ -159,3 +159,6 @@ class ResnetClassifier(nn.Module):
         parser.add_argument("--n_channels", type=int, default=NUM_CHANNELS)
         parser.add_argument("--dropout", type=bool, default=DROPOUT)
         return parser
+
+    def get_num_classes(self):
+        return NUM_CLASSES
