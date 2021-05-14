@@ -28,3 +28,4 @@ from .fake_images import FakeImageData
 '''
 # added by active-learning-project
 from .droughtwatch import DroughtWatch
+from .cassava import CassavaDataModule
