@@ -1,5 +1,7 @@
 from .util import BaseDataset
 from .base_data_module import BaseDataModule
+from .cassava import CassavaDataset
+from .deepweeds import DeepweedsDataset
 '''
 from .mnist import MNIST
 
@@ -29,3 +31,4 @@ from .fake_images import FakeImageData
 # added by active-learning-project
 from .droughtwatch import DroughtWatch
 from .cassava import CassavaDataModule
+from .deepweeds import DeepweedsDataModule
