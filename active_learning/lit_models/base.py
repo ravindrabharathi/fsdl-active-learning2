@@ -51,7 +51,9 @@ class Accuracy(pl.metrics.Accuracy):
         if preds.min() < 0 or preds.max() > 1:
             preds = torch.nn.functional.softmax(preds, dim=-1)
         super().update(preds=preds, target=target)
-
+    
+    def compute(self):
+        super.compute()
 
 class F1_Score(pl.metrics.F1):
     """F1-Score Metric with a hack."""
@@ -68,6 +70,8 @@ class F1_Score(pl.metrics.F1):
             preds = torch.nn.functional.softmax(preds, dim=-1)
         super().update(preds=preds, target=target)
 
+    def compute(self):
+        super.compute()
 
 class BaseLitModel(pl.LightningModule):  # pylint: disable=too-many-ancestors
     """
