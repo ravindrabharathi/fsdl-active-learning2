@@ -9,11 +9,11 @@ import warnings
 NUM_CLASSES = 4
 NUM_CHANNELS = 11
 DROPOUT = True
-DROPOUT_PROB = 0.5
+DROPOUT_PROB = 0.1
 DROPOUT_HIDDEN_DIM = 512
 BINARY = False
 RGB = False
-PRETRAINED = False
+PRETRAINED = True
 
 class ResnetClassifier(nn.Module):
     """Classify an image of arbitrary size through a (pretrained) ResNet network"""
@@ -61,6 +61,33 @@ class ResnetClassifier(nn.Module):
                         std=[new_channel_std] + [0.225, 0.224, 0.229] + [new_channel_std]*(n_channels-4))
                     ])
 
+        if rgb == False:
+            print("Adapting first convolutional layer to additional channels\n")
+            # adapting the no. of input channels to the first conv layer 
+            # (adapted from https://discuss.pytorch.org/t/how-to-modify-the-input-channels-of-a-resnet-model/2623/10)
+            existing_layer = self.resnet.conv1
+
+            new_layer = nn.Conv2d(in_channels=n_channels, 
+                            out_channels=existing_layer.out_channels, 
+                            kernel_size=existing_layer.kernel_size, 
+                            stride=existing_layer.stride, 
+                            padding=existing_layer.padding,
+                            bias=existing_layer.bias)
+
+
+            new_layer.weight[:, :existing_layer.in_channels, :, :] = existing_layer.weight.clone() # copying the weights from the old to the new layer
+            
+            copy_weights = 0 # take channel 0 weights to initialize new ones
+            for i in range(n_channels - existing_layer.in_channels): # copying the weights of the `copy_weights` channel of the old layer to the extra channels of the new layer
+                channel = existing_layer.in_channels + i
+                new_layer.weight[:, channel:channel+1, :, :] = existing_layer.weight[:, copy_weights:copy_weights+1, :, :].clone()
+
+            new_layer.weight = nn.Parameter(new_layer.weight)
+
+            self.resnet.conv1 = new_layer            
+        ## Freeze backbone params 
+        for param in self.resnet.parameters():
+            param.requires_grad = False
         # changing the architecture of the laster layers
         # if dropout is activated, add an additional fully connected layer with dropout before the last layer
         # split classification head into different parts to extract intermediate activations
@@ -89,30 +116,7 @@ class ResnetClassifier(nn.Module):
         else:
             self.resnet.fc = nn.Linear(self.resnet.fc.in_features, n_classes)
 
-        if rgb == False:
-            print("Adapting first convolutional layer to additional channels\n")
-            # adapting the no. of input channels to the first conv layer 
-            # (adapted from https://discuss.pytorch.org/t/how-to-modify-the-input-channels-of-a-resnet-model/2623/10)
-            existing_layer = self.resnet.conv1
-
-            new_layer = nn.Conv2d(in_channels=n_channels, 
-                            out_channels=existing_layer.out_channels, 
-                            kernel_size=existing_layer.kernel_size, 
-                            stride=existing_layer.stride, 
-                            padding=existing_layer.padding,
-                            bias=existing_layer.bias)
-
-
-            new_layer.weight[:, :existing_layer.in_channels, :, :] = existing_layer.weight.clone() # copying the weights from the old to the new layer
-            
-            copy_weights = 0 # take channel 0 weights to initialize new ones
-            for i in range(n_channels - existing_layer.in_channels): # copying the weights of the `copy_weights` channel of the old layer to the extra channels of the new layer
-                channel = existing_layer.in_channels + i
-                new_layer.weight[:, channel:channel+1, :, :] = existing_layer.weight[:, copy_weights:copy_weights+1, :, :].clone()
-
-            new_layer.weight = nn.Parameter(new_layer.weight)
-
-            self.resnet.conv1 = new_layer
+        
 
     def forward(self, x: torch.Tensor, extract_intermediate_activations: bool = False) -> torch.Tensor:
         """
