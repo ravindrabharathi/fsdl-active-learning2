@@ -14,6 +14,7 @@ DROPOUT_HIDDEN_DIM = 512
 BINARY = False
 RGB = False
 PRETRAINED = True
+FREEZE_BB=False
 
 class ResnetClassifier(nn.Module):
     """Classify an image of arbitrary size through a (pretrained) ResNet network"""
@@ -86,8 +87,9 @@ class ResnetClassifier(nn.Module):
 
             self.resnet.conv1 = new_layer            
         ## Freeze backbone params 
-        for param in self.resnet.parameters():
-            param.requires_grad = False
+        if FREEZE_BB:
+            for param in self.resnet.parameters():
+                param.requires_grad = False
         # changing the architecture of the laster layers
         # if dropout is activated, add an additional fully connected layer with dropout before the last layer
         # split classification head into different parts to extract intermediate activations
