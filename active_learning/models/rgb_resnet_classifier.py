@@ -19,7 +19,7 @@ class RGBResnetClassifier(nn.Module):
         super().__init__()
         self.args = vars(args) if args is not None else {}
 
-        n_classes = self.args.get("n_classes", NUM_CLASSES)
+        self.n_classes = self.args.get("n_classes", NUM_CLASSES)
         pretrained = self.args.get("pretrained", PRETRAINED)
         self.dropout = self.args.get("dropout", DROPOUT)
 
@@ -50,7 +50,7 @@ class RGBResnetClassifier(nn.Module):
                 nn.BatchNorm1d(DROPOUT_HIDDEN_DIM),  # adding batchnorm
                 nn.ReLU(),  # additional nonlinearity
                 nn.Dropout(DROPOUT_PROB),  # additional dropout layer
-                nn.Linear(DROPOUT_HIDDEN_DIM, n_classes),  # same fc layer as we had before
+                nn.Linear(DROPOUT_HIDDEN_DIM, self.n_classes),  # same fc layer as we had before
             )
 
         # otherwise just adapt no. of classes in last fully-connected layer
@@ -59,7 +59,7 @@ class RGBResnetClassifier(nn.Module):
                 nn.Linear(self.resnet.fc.in_features, self.resnet.fc.in_features),
                 nn.BatchNorm1d(self.resnet.fc.in_features),
                 nn.ReLU(),
-                nn.Linear(self.resnet.fc.in_features, n_classes),
+                nn.Linear(self.resnet.fc.in_features, self.n_classes),
             )
 
     def forward(self, x: torch.Tensor, extract_intermediate_activations: bool = False) -> torch.Tensor:
@@ -100,7 +100,7 @@ class RGBResnetClassifier(nn.Module):
             return x
 
     def get_num_classes(self):
-        return NUM_CLASSES
+        return self.n_classes
 
     def add_to_argparse(parser):
         parser.add_argument("--pretrained", type=bool, default=PRETRAINED)

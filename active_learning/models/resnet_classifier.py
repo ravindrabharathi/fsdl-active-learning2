@@ -24,7 +24,7 @@ class ResnetClassifier(nn.Module):
         self.args = vars(args) if args is not None else {}
 
         n_channels = self.args.get("n_channels", NUM_CHANNELS)
-        n_classes = self.args.get("n_classes", NUM_CLASSES)
+        self.n_classes = self.args.get("n_classes", NUM_CLASSES)
         pretrained = self.args.get("pretrained", PRETRAINED)
         freeze_bb = self.args.get("freeze_bb", FREEZE_BB)
         self.dropout = self.args.get("dropout", DROPOUT)
@@ -33,7 +33,7 @@ class ResnetClassifier(nn.Module):
 
         # override values if binary or rgb are specified
         if binary == True:
-            n_classes = 2
+            self.n_classes = 2
             print("Overriding n_classes parameter, setting n_classes to 2")
         if rgb == True:
             n_channels = 3
@@ -112,12 +112,12 @@ class ResnetClassifier(nn.Module):
                 nn.BatchNorm1d(DROPOUT_HIDDEN_DIM), # adding batchnorm
                 nn.ReLU(), # additional nonlinearity
                 nn.Dropout(DROPOUT_PROB), # additional dropout layer
-                nn.Linear(DROPOUT_HIDDEN_DIM, n_classes) # same fc layer as we had before
+                nn.Linear(DROPOUT_HIDDEN_DIM, self.n_classes) # same fc layer as we had before
             )
 
         # otherwise just adapt no. of classes in last fully-connected layer
         else:
-            self.resnet.fc = nn.Linear(self.resnet.fc.in_features, n_classes)
+            self.resnet.fc = nn.Linear(self.resnet.fc.in_features, self.n_classes)
 
         
 
@@ -169,4 +169,4 @@ class ResnetClassifier(nn.Module):
         return parser
 
     def get_num_classes(self):
-        return NUM_CLASSES
+        return self.n_classes

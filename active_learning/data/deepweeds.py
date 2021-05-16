@@ -146,7 +146,7 @@ class DeepweedsDataModule(pl.LightningDataModule):
             raise NameError("Unknown Dataset Name " + ds_name)
 
     def get_num_classes():
-        return 5
+        return 9
 
     # convert any float values in Label column to int
     def convert_to_int(self, x):
