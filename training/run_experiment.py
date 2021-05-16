@@ -1,14 +1,15 @@
 """Experiment-running framework."""
 import argparse
 import importlib
+import warnings
 
 import numpy as np
+import pytorch_lightning as pl
 import torch
 import torch.nn as nn
-import pytorch_lightning as pl
-import wandb
 from sklearn.model_selection import train_test_split
 
+import wandb
 from active_learning import lit_models
 from active_learning.data.util import BaseDataset
 from active_learning.lit_models.base import MaxAccuracyLogger
@@ -190,6 +191,16 @@ def main():
     parser = _setup_parser()
     args = parser.parse_args()
     data_class = _import_class(f"active_learning.data.{args.data_class}")
+
+    if args.data_class == "DeepweedsDataModule":
+        warnings.warn(f"DeepweedsDataModule currently only implemented for RGBResnetClassifier with 9 classes, setting args parameters 'n_classes' and 'model_class' manually")
+        args.n_classes = 9
+        args.model_class = "RGBResnetClassifier"
+    elif args.data_class == "CassavaDataModule":
+        warnings.warn(f"CassavaDataModule currently only implemented for RGBResnetClassifier with 5 classes, setting args parameters 'n_classes' and 'model_class' manually")
+        args.n_classes = 5
+        args.model_class = "RGBResnetClassifier"
+
     model_class = _import_class(f"active_learning.models.{args.model_class}")
 
     data = data_class(args)
