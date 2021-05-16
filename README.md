@@ -18,7 +18,7 @@ It was implemented as capstone project for the Spring course 2021 by [Stefan Jos
 
 ## Relevant Changes Compared to Lab Template
 
-**Datasets**: [DroughtWatch](https://github.com/wandb/droughtwatch), [MNIST](https://en.wikipedia.org/wiki/MNIST_database), [Cassava](https://www.kaggle.com/c/cassava-disease/data) and [DeepWeeds](hhttps://github.com/AlexOlsen/DeepWeeds)
+**Datasets**: [DroughtWatch](https://github.com/wandb/droughtwatch), [MNIST](https://en.wikipedia.org/wiki/MNIST_database), [Cassava](https://www.kaggle.com/c/cassava-disease/data) and [DeepWeeds](https://github.com/AlexOlsen/DeepWeeds)
 
 **Models**: PyTorch's [ResNet50](https://pytorch.org/hub/pytorch_vision_resnet/) extended with own input and output layers for both datasets mentioned above
 
