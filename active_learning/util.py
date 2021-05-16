@@ -1,14 +1,13 @@
 """Utility functions for active_learning module."""
+# import base64
+import hashlib
 from pathlib import Path
 from typing import Union
 from urllib.request import urlretrieve
 
-# import base64
-import hashlib
-
+import numpy as np
 from PIL import Image
 from tqdm import tqdm
-import numpy as np
 
 
 def to_categorical(y, num_classes):

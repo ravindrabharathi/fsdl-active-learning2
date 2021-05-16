@@ -1,7 +1,8 @@
 import argparse
+
+import numpy as np
 import pytorch_lightning as pl
 import torch
-import numpy as np
 
 OPTIMIZER = "Adam"
 LR = 1e-3

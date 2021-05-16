@@ -1,12 +1,12 @@
 """Base DataModule class."""
+import argparse
 from pathlib import Path
 from typing import Collection, Dict, Optional, Tuple, Union
-import argparse
-import numpy as np
 
+import numpy as np
+import pytorch_lightning as pl
 import torch
 from torch.utils.data import ConcatDataset, DataLoader
-import pytorch_lightning as pl
 
 from active_learning import util
 from active_learning.data.util import BaseDataset

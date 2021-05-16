@@ -1,9 +1,10 @@
 import argparse
 from typing import Any, Dict
+
 import torch
 import torch.nn as nn
-import torchvision.transforms as tt
 import torchvision
+import torchvision.transforms as tt
 
 PRETRAINED = False
 NUM_CLASSES = 10

@@ -1,8 +1,9 @@
 import torch.nn as nn
+
 import wandb
 
-from .metrics import CharacterErrorRate
 from .base import BaseLitModel
+from .metrics import CharacterErrorRate
 
 
 class TransformerLitModel(BaseLitModel):  # pylint: disable=too-many-ancestors

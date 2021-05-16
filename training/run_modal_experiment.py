@@ -1,17 +1,17 @@
 """modAL experiment-running framework."""
 import argparse
 import importlib
+
 import numpy as np
-import torch
 import pytorch_lightning as pl
-import wandb
-
-from modAL.models import ActiveLearner
 import skorch
+import torch
+from modAL.models import ActiveLearner
 from skorch import NeuralNetClassifier
-from skorch.helper import predefined_split
 from skorch.dataset import Dataset
+from skorch.helper import predefined_split
 
+import wandb
 from active_learning import lit_models
 
 # In order to ensure reproducible experiments, we must set random seeds.

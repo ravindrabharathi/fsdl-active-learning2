@@ -1,17 +1,15 @@
 """MNIST DataModule"""
-from torch.utils.data.dataloader import DataLoader
-from active_learning.data.util import BaseDataset
 import argparse
-import numpy as np
 
+import numpy as np
 import torch
-from torchvision.datasets import MNIST as TorchMNIST
+from six.moves import urllib  # NOTE: temp fix until https://github.com/pytorch/vision/issues/1938 is resolved
+from torch.utils.data.dataloader import DataLoader
 from torchvision import transforms
+from torchvision.datasets import MNIST as TorchMNIST
 
 from active_learning.data.base_data_module import BaseDataModule, load_and_print_info
-
-# NOTE: temp fix until https://github.com/pytorch/vision/issues/1938 is resolved
-from six.moves import urllib
+from active_learning.data.util import BaseDataset
 
 DOWNLOADED_DATA_DIRNAME = BaseDataModule.data_dirname() / "downloaded"
 N_TRAIN = 2000

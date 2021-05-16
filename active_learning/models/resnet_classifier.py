@@ -1,10 +1,11 @@
 import argparse
+import warnings
 from typing import Any, Dict
+
 import torch
 import torch.nn as nn
-import torchvision.transforms as tt
 import torchvision
-import warnings
+import torchvision.transforms as tt
 
 NUM_CLASSES = 4
 NUM_CHANNELS = 11

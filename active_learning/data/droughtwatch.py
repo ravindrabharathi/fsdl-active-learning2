@@ -1,20 +1,19 @@
 """
 W&B drought watch benchmark data set
 """
-from pathlib import Path
 import os
 import shutil
 import zipfile
+from pathlib import Path
 
-from torchvision import transforms
 import h5py
-import toml
-
-from active_learning.data.base_data_module import _download_raw_dataset, BaseDataModule, load_and_print_info
-from active_learning.data.util import BaseDataset
-
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
+import toml
+from torchvision import transforms
+
+from active_learning.data.base_data_module import BaseDataModule, _download_raw_dataset, load_and_print_info
+from active_learning.data.util import BaseDataset
 
 DEBUG_OUTPUT = True
 IMG_DIM = 65

@@ -1,11 +1,12 @@
 """Test for paragraph_active_learning module."""
-import os
 import json
-from pathlib import Path
+import os
 import time
-import editdistance
-from active_learning.paragraph_active_learning import ParagraphTextRecognizer
+from pathlib import Path
 
+import editdistance
+
+from active_learning.paragraph_active_learning import ParagraphTextRecognizer
 
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 

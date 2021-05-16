@@ -1,2 +1,2 @@
 from .al_sampler import *
-from .modal_extensions import random, max_entropy, bald, outlier, cluster_outlier_combined
+from .modal_extensions import bald, cluster_outlier_combined, max_entropy, outlier, random
