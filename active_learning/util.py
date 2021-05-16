@@ -1,5 +1,4 @@
 """Utility functions for active_learning module."""
-# import base64
 import hashlib
 from pathlib import Path
 from typing import Union
