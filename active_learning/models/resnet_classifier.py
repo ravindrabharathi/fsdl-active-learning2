@@ -13,7 +13,7 @@ DROPOUT_PROB = 0.1
 DROPOUT_HIDDEN_DIM = 512
 BINARY = False
 RGB = False
-PRETRAINED = True
+PRETRAINED = False
 FREEZE_BB=False
 
 class ResnetClassifier(nn.Module):
@@ -26,6 +26,7 @@ class ResnetClassifier(nn.Module):
         n_channels = self.args.get("n_channels", NUM_CHANNELS)
         n_classes = self.args.get("n_classes", NUM_CLASSES)
         pretrained = self.args.get("pretrained", PRETRAINED)
+        freeze_bb = self.args.get("freeze_bb", FREEZE_BB)
         self.dropout = self.args.get("dropout", DROPOUT)
         binary = self.args.get("binary", BINARY)
         rgb = self.args.get("rgb", RGB)
@@ -87,7 +88,7 @@ class ResnetClassifier(nn.Module):
 
             self.resnet.conv1 = new_layer            
         ## Freeze backbone params 
-        if FREEZE_BB:
+        if freeze_bb:
             for param in self.resnet.parameters():
                 param.requires_grad = False
         # changing the architecture of the laster layers
@@ -161,6 +162,7 @@ class ResnetClassifier(nn.Module):
 
     def add_to_argparse(parser):
         parser.add_argument("--pretrained", action="store_true", default=False)
+        parser.add_argument("--freeze_bb", action="store_true", default=False, help="Whether to deactivate the training of the ResNet backbone model")
         parser.add_argument("--n_classes", type=int, default=NUM_CLASSES)
         parser.add_argument("--n_channels", type=int, default=NUM_CHANNELS)
         parser.add_argument("--dropout", type=bool, default=DROPOUT)
