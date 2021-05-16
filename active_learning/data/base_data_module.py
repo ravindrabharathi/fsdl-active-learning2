@@ -41,6 +41,7 @@ BATCH_SIZE = 128
 NUM_WORKERS = 0
 DEBUG_OUTPUT = True
 
+
 class BaseDataModule(pl.LightningDataModule):
     """
     Base DataModule.
@@ -63,7 +64,7 @@ class BaseDataModule(pl.LightningDataModule):
         self.data_train: Union[BaseDataset, ConcatDataset]
         self.data_val: Union[BaseDataset, ConcatDataset]
         self.data_test: Union[BaseDataset, ConcatDataset]
-        self.data_unlabelled=Union[BaseDataset,ConcatDataset]
+        self.data_unlabelled = Union[BaseDataset, ConcatDataset]
 
     @classmethod
     def data_dirname(cls):
@@ -77,7 +78,12 @@ class BaseDataModule(pl.LightningDataModule):
         parser.add_argument(
             "--num_workers", type=int, default=NUM_WORKERS, help="Number of additional processes to load data."
         )
-        parser.add_argument("--reduced_pool", type=bool, default=False, help="Whether to take only a fraction of the pool (allows for faster results during development)")
+        parser.add_argument(
+            "--reduced_pool",
+            type=bool,
+            default=False,
+            help="Whether to take only a fraction of the pool (allows for faster results during development)",
+        )
 
         return parser
 
@@ -131,30 +137,29 @@ class BaseDataModule(pl.LightningDataModule):
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             pin_memory=self.on_gpu,
-        )    
+        )
 
-    def get_ds_length(self ,ds_name='unlabelled'):
-    
-        if ds_name=='unlabelled':
+    def get_ds_length(self, ds_name="unlabelled"):
+
+        if ds_name == "unlabelled":
             return len(self.data_unlabelled.data)
-        elif ds_name=='train':
+        elif ds_name == "train":
             return len(self.data_train.data)
-        elif ds_name=='test' :
+        elif ds_name == "test":
             return len(self.data_test.data)
-        elif ds_name=='val' :
+        elif ds_name == "val":
             return len(self.data_val.data)
         else:
-            raise NameError('Unknown Dataset Name '+ds_name) 
-           
+            raise NameError("Unknown Dataset Name " + ds_name)
 
     def expand_training_set(self, sample_idxs):
 
-        #get x_train, y_train
-        x_train=self.data_train.data
-        y_train=self.data_train.targets
-        #get unlabelled set
-        x_pool=self.data_unlabelled.data
-        y_pool=self.data_unlabelled.targets
+        # get x_train, y_train
+        x_train = self.data_train.data
+        y_train = self.data_train.targets
+        # get unlabelled set
+        x_pool = self.data_unlabelled.data
+        y_pool = self.data_unlabelled.targets
 
         # get new training examples
         x_train_new = x_pool[sample_idxs]
@@ -166,22 +171,20 @@ class BaseDataModule(pl.LightningDataModule):
         self.x_pool = x_pool[mask]
         self.y_pool = y_pool[mask]
 
-
         # add new examples to training set
         self.x_train = np.concatenate([x_train, x_train_new])
         self.y_train = np.concatenate([y_train, y_train_new])
 
         self.data_train = BaseDataset(self.x_train, self.y_train, transform=self.transform)
-        self.data_test = BaseDataset(self.x_pool, self.y_pool, transform=self.transform) 
-        self.data_unlabelled=BaseDataset(self.x_pool, self.y_pool, transform=self.transform)
-        print('New train set size', len(self.x_train))
-        print('New unlabelled pool size', len(self.x_pool))
-
+        self.data_test = BaseDataset(self.x_pool, self.y_pool, transform=self.transform)
+        self.data_unlabelled = BaseDataset(self.x_pool, self.y_pool, transform=self.transform)
+        print("New train set size", len(self.x_train))
+        print("New unlabelled pool size", len(self.x_pool))
 
     def get_activation_scores(self, model):
 
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        
+
         # for some reason, lightning module is not yet on cuda, even if it was initialized that way --> transfer it
         model = model.to(device)
 
@@ -198,7 +201,7 @@ class BaseDataModule(pl.LightningDataModule):
 
             # loop through batches in unlabelled pool
             for batch_features, _ in all_samples:
-                
+
                 # move features to device
                 batch_features = batch_features.to(device)
 
@@ -212,11 +215,10 @@ class BaseDataModule(pl.LightningDataModule):
 
         return out_layer_1, out_layer_2, out_layer_3
 
-
     def get_pool_probabilities(self, model, T=10):
 
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        
+
         # for some reason, lightning module is not yet on cuda, even if it was initialized that way --> transfer it
         model = model.to(device)
 
@@ -241,20 +243,19 @@ class BaseDataModule(pl.LightningDataModule):
             print("NOTE: Reduced pool dev parameter activated, will only process first batch")
             all_samples = [next(all_samples._get_iterator())]
 
-
         # process pool of instances batch wise
         for batch_features, _ in all_samples:
 
             with torch.no_grad():
                 outputs = torch.stack(
                     [
-                        torch.softmax( # probabilities from logits
-                            model(batch_features.to(device)), dim=-1) # logits
-                        for t in range(T) # multiple calculations
-                    ]
-                , dim = -1)
+                        torch.softmax(model(batch_features.to(device)), dim=-1)  # probabilities from logits  # logits
+                        for t in range(T)  # multiple calculations
+                    ],
+                    dim=-1,
+                )
 
-            all_outputs = torch.cat([all_outputs, outputs], dim = 0)
+            all_outputs = torch.cat([all_outputs, outputs], dim=0)
 
             if DEBUG_OUTPUT:
                 i += 1
@@ -264,11 +265,12 @@ class BaseDataModule(pl.LightningDataModule):
                     i = 0
 
         if DEBUG_OUTPUT:
-            print(f"100% of samples in pool processed\n")
-        
+            print("100% of samples in pool processed\n")
+
         return all_outputs
+
 
 def _enable_dropout(model):
     for each_module in model.modules():
-        if each_module.__class__.__name__.startswith('Dropout'):
+        if each_module.__class__.__name__.startswith("Dropout"):
             each_module.train()

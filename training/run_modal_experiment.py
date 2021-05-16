@@ -171,8 +171,6 @@ def main():
     else:
         lit_model = lit_model_class(args=args, model=model)
 
-    logger = pl.loggers.TensorBoardLogger("training/logs")
-
     # modAL specific experiment setup
     # -------------------------------
 

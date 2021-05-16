@@ -33,7 +33,6 @@ class MNIST(BaseDataModule):
         parser.add_argument("--n_validation_images", type=int, default=N_VAL)
         return parser
 
-
     def __init__(self, args: argparse.Namespace) -> None:
         super().__init__(args)
 
@@ -44,13 +43,12 @@ class MNIST(BaseDataModule):
 
         self.transform = None
 
-        self.dims = (1, 1, 64, 64) 
+        self.dims = (1, 1, 64, 64)
         self.output_dims = (1,)
         self.mapping = list(range(10))
 
         self.prepare_data(args)
         self.init_setup(args)
-
 
     def prepare_data(self, *args, **kwargs) -> None:
         """Download train and test MNIST data from PyTorch canonical source."""
@@ -62,16 +60,14 @@ class MNIST(BaseDataModule):
         TorchMNIST(self.data_dir, train=True, download=True)
         TorchMNIST(self.data_dir, train=False, download=True)
 
-
     def init_setup(self, args: argparse.Namespace, stage=None) -> None:
         """Split into train, val, test and pool."""
 
-        # load train set initially to calculate mean/std for normalization
-        mnist = TorchMNIST(self.data_dir, train=True).data.float()
-
-        transform = transforms.Compose([
-            transforms.ToTensor(), 
-            ])
+        transform = transforms.Compose(
+            [
+                transforms.ToTensor(),
+            ]
+        )
 
         # load MNIST train dataset with transformation and convert to numpy
         mnist_full = TorchMNIST(self.data_dir, train=True, transform=transform)
@@ -98,14 +94,24 @@ class MNIST(BaseDataModule):
         print(f"Initial unlabelled pool size: {len(self.data_unlabelled)} - shape: {self.data_unlabelled.data.shape}")
         print(f"Validation set size: {len(self.data_val)} - shape: {self.data_val.data.shape}\n")
 
-        assert self.data_train.data.shape[1:] == torch.Size([1, 28, 28]), f"invalid data_train shape: {self.data_train.data.shape[1:]}"
-        assert self.data_val.data.shape[1:] == torch.Size([1, 28, 28]), f"invalid data_val shape: {self.data_val.data.shape[1:]}"
-        assert self.data_unlabelled.data.shape[1:] == torch.Size([1, 28, 28]), f"invalid data_unlabelled shape: {self.data_unlabelled.data.shape[1:]}"
-
+        assert self.data_train.data.shape[1:] == torch.Size(
+            [1, 28, 28]
+        ), f"invalid data_train shape: {self.data_train.data.shape[1:]}"
+        assert self.data_val.data.shape[1:] == torch.Size(
+            [1, 28, 28]
+        ), f"invalid data_val shape: {self.data_val.data.shape[1:]}"
+        assert self.data_unlabelled.data.shape[1:] == torch.Size(
+            [1, 28, 28]
+        ), f"invalid data_unlabelled shape: {self.data_unlabelled.data.shape[1:]}"
 
     def __repr__(self):
         basic = f"MNIST Dataset\nDims: {self.dims}\n"
-        if self.data_train is None and self.data_val is None and self.data_test is None and self.data_unlabelled is None:
+        if (
+            self.data_train is None
+            and self.data_val is None
+            and self.data_test is None
+            and self.data_unlabelled is None
+        ):
             return basic
 
         # deepcode ignore unguarded~next~call: call to just initialized train_dataloader always returns data

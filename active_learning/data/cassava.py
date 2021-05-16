@@ -66,8 +66,8 @@ class CassavaDataModule(pl.LightningDataModule):
         self.on_gpu = isinstance(self.args.get("gpus", None), (str, int))
 
         """
-        The image data and label csv file are being copied from google drive for the time being to 
-        ./data/cassava folder of the cloned repo during execution of colab notebook. Will add a way to 
+        The image data and label csv file are being copied from google drive for the time being to
+        ./data/cassava folder of the cloned repo during execution of colab notebook. Will add a way to
         download and place them in appropriate folders later on.
         """
 

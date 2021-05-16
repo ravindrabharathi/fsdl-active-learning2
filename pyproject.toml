@@ -3,9 +3,8 @@ line-length = 120
 target-version = ['py37']
 
 [tool.flake8]
-exclude = wandb
+exclude = "wandb"
 max-line-length = 120
-; ignore = E501, W503, E226
-; E501: Line too long
-; W503: Line break occurred before binary operator
-; E226: Missing white space around arithmetic operator
+ignore = "E501,W503"
+# E501: Line too long
+# W503: Line break occurred before binary operator
