@@ -201,11 +201,11 @@ def main():
     lit_model_class = lit_models.BaseLitModel
 
     # get info about scenario for logging
-    if args.binary:
+    if "binary" in args and args.binary:
         class_scenario = "_binary"
     else:
         class_scenario = "_multi-class"
-    if args.rgb:
+    if "rgb" in args and args.rgb:
         channel_scenario = "_rgb"
     else:
         channel_scenario = "_all-channels"

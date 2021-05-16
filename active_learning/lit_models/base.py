@@ -95,10 +95,12 @@ class BaseLitModel(pl.LightningModule):  # pylint: disable=too-many-ancestors
         self.one_cycle_total_steps = self.args.get("one_cycle_total_steps", ONE_CYCLE_TOTAL_STEPS)
         
         binary = self.args.get("binary", False)
+
         if binary:
             num_classes = 2
         else:
-            num_classes = 4
+            assert self.args.get("n_classes") is not None, "Neither 'binary' nor args parameter 'n_classes' was passed to BaseLitModel"
+            num_classes = self.args.get("n_classes")
 
         self.train_acc = Accuracy()
         self.val_acc = Accuracy()
@@ -167,7 +169,7 @@ class BaseLitModel(pl.LightningModule):  # pylint: disable=too-many-ancestors
             self.log("train_size", self.trainer.datamodule.get_ds_length('train'), on_step=False, on_epoch=True, prog_bar=False)
 
         # store validation predictions
-        if len(self.val_predictions) in [0, 10778]:
+        if len(self.val_predictions) in [0, 10000]:
             self.val_predictions = logits.detach()
         else:
             self.val_predictions = torch.cat([self.val_predictions, logits.detach()])
