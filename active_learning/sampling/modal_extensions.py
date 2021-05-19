@@ -1,13 +1,14 @@
 """
 Implementation of various active learning techniques for the course FSDL Spring 2021 that can be used with modAL.
 """
+from math import ceil
 from typing import Tuple
-import torch
+
+import hdbscan
 import numpy as np
 import pandas as pd
+import torch
 from modAL.models import ActiveLearner
-import hdbscan
-from math import ceil
 
 T_DEFAULT = 10
 N_INSTANCES_DEFAULT = 100

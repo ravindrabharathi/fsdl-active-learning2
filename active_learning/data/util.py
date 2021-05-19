@@ -1,7 +1,7 @@
 """Base Dataset class."""
 from typing import Any, Callable, Dict, Sequence, Tuple, Union
+
 import torch
-from torch.utils.data import random_split, DataLoader
 
 SequenceOrTensor = Union[Sequence, torch.Tensor]
 
@@ -66,7 +66,7 @@ class BaseDataset(torch.utils.data.Dataset):
         return datum, target
 
     def get_len(self):
-        return len(self.data)    
+        return len(self.data)
 
 
 def convert_strings_to_labels(strings: Sequence[str], mapping: Dict[str, int], length: int) -> torch.Tensor:

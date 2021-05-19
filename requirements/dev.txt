@@ -84,6 +84,10 @@ editdistance==0.5.3
     #   -r requirements/dev.in
 entrypoints==0.3
     # via nbconvert
+flake8==3.9.2
+    # via
+    #   -r requirements/dev.in
+    #   pyproject-flake8
 gitdb==4.0.7
     # via gitpython
 gitpython==3.1.14
@@ -102,6 +106,7 @@ immutables==0.15
 importlib-metadata==3.10.0
     # via
     #   -c requirements/prod.txt
+    #   flake8
     #   jsonschema
     #   pluggy
     #   pytest
@@ -121,7 +126,9 @@ ipython==7.16.1
     #   ipykernel
     #   jupyterlab
 isort==5.8.0
-    # via pylint
+    # via
+    #   -r requirements/dev.in
+    #   pylint
 itermplot==0.331
     # via -r requirements/dev.in
 jedi==0.18.0
@@ -185,7 +192,9 @@ matplotlib==3.3.4
     #   -r requirements/dev.in
     #   itermplot
 mccabe==0.6.1
-    # via pylint
+    # via
+    #   flake8
+    #   pylint
 mistune==0.8.4
     # via nbconvert
 modal==0.4.1
@@ -280,11 +289,15 @@ ptyprocess==0.7.0
 py==1.10.0
     # via pytest
 pycodestyle==2.7.0
-    # via -r requirements/dev.in
+    # via
+    #   -r requirements/dev.in
+    #   flake8
 pycparser==2.20
     # via cffi
 pydocstyle==6.0.0
     # via -r requirements/dev.in
+pyflakes==2.3.1
+    # via flake8
 pygments==2.8.1
     # via
     #   ipython
@@ -296,6 +309,8 @@ pyparsing==2.4.7
     # via
     #   matplotlib
     #   packaging
+pyproject-flake8==0.0.1a2
+    # via -r requirements/dev.in
 pyrsistent==0.17.3
     # via jsonschema
 pytest==6.2.3
@@ -398,6 +413,7 @@ toml==0.10.2
     #   black
     #   dparse
     #   pylint
+    #   pyproject-flake8
     #   pytest
 tornado==6.1
     # via

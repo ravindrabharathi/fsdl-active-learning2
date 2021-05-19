@@ -2,7 +2,6 @@ from math import ceil, isnan
 
 import hdbscan
 import numpy as np
-import pandas as pd
 import torch
 
 DEBUG_OUTPUT = True
@@ -125,7 +124,7 @@ def max_entropy(probabilities: torch.Tensor, sample_size: int) -> np.array:
 
 def least_confidence_pt(predictions, sample_size: int) -> np.array:
     """Uncertainty sampling technique from https://towardsdatascience.com/uncertainty-sampling-cheatsheet-ec57bc067c0b"""
-        
+
     # convert np array to torch tensor
     probabilities = torch.Tensor(predictions)
 
@@ -148,14 +147,14 @@ def least_confidence_pt(predictions, sample_size: int) -> np.array:
 
 def margin_pt(predictions, sample_size: int) -> np.array:
     """Uncertainty sampling technique from https://towardsdatascience.com/uncertainty-sampling-cheatsheet-ec57bc067c0b"""
-        
+
     # convert np array to torch tensor
     probabilities = torch.Tensor(predictions)
 
     # get two highest probabilities
     max_probs, _ = torch.topk(probabilities, 2, largest=True, dim=1)
     # calculate margins between two most confident predictions
-    margins = max_probs[:,0] - max_probs[:,1]
+    margins = max_probs[:, 0] - max_probs[:, 1]
     # calculate scores between 0 and 1
     scores = 1 - margins
 
@@ -178,7 +177,7 @@ def ratio_pt(predictions, sample_size: int) -> np.array:
     # get two highest probabilities
     max_probs, _ = torch.topk(probabilities, 2, largest=True, dim=1)
     # calculate ratio between two most confident predictions
-    scores = max_probs[:,1] / max_probs[:,0]
+    scores = max_probs[:, 1] / max_probs[:, 0]
 
     # make sure sample size doesn't exceed scores
     sample_size = np.min([len(scores), sample_size])
@@ -217,7 +216,7 @@ def least_confidence_mc(probabilities: torch.Tensor, sample_size: int) -> np.arr
 
     # calculate average probabilities from multiple inference runs
     probabilities = torch.mean(probabilities, dim=2)
-        
+
     # get top probabilities
     max_probs = torch.max(probabilities, dim=-1)[0]
     # get number of classes
@@ -245,7 +244,7 @@ def margin_mc(probabilities: torch.Tensor, sample_size: int) -> np.array:
     # get two highest probabilities
     max_probs, _ = torch.topk(probabilities, 2, largest=True, dim=1)
     # calculate margins between two most confident predictions
-    margins = max_probs[:,0] - max_probs[:,1]
+    margins = max_probs[:, 0] - max_probs[:, 1]
     # calculate scores between 0 and 1
     scores = 1 - margins
 
@@ -269,7 +268,7 @@ def ratio_mc(probabilities: torch.Tensor, sample_size: int) -> np.array:
     # get two highest probabilities
     max_probs, _ = torch.topk(probabilities, 2, largest=True, dim=1)
     # calculate ratio between two most confident predictions
-    scores = max_probs[:,1] / max_probs[:,0]
+    scores = max_probs[:, 1] / max_probs[:, 0]
 
     # make sure sample size doesn't exceed scores
     sample_size = np.min([len(scores), sample_size])
@@ -303,7 +302,9 @@ def entropy_mc(probabilities: torch.Tensor, sample_size: int) -> np.array:
     return idxs
 
 
-def mb_outliers_mean(out_layer_1: torch.Tensor, out_layer_2: torch.Tensor, out_layer_3: torch.Tensor, sample_size: int) -> np.array:
+def mb_outliers_mean(
+    out_layer_1: torch.Tensor, out_layer_2: torch.Tensor, out_layer_3: torch.Tensor, sample_size: int
+) -> np.array:
     """Diversity sampling technique from https://towardsdatascience.com/https-towardsdatascience-com-diversity-sampling-cheatsheet-32619693c304"""
 
     # calculate mean activations for each layer's activations
@@ -320,11 +321,13 @@ def mb_outliers_mean(out_layer_1: torch.Tensor, out_layer_2: torch.Tensor, out_l
     # pick k examples with lowest activation scores
     _, idxs = torch.topk(scores, sample_size, largest=False)
     idxs = idxs.detach().cpu().numpy()
-    
+
     return idxs
 
 
-def mb_outliers_max(out_layer_1: torch.Tensor, out_layer_2: torch.Tensor, out_layer_3: torch.Tensor, sample_size: int) -> np.array:
+def mb_outliers_max(
+    out_layer_1: torch.Tensor, out_layer_2: torch.Tensor, out_layer_3: torch.Tensor, sample_size: int
+) -> np.array:
     """Diversity sampling technique from https://towardsdatascience.com/https-towardsdatascience-com-diversity-sampling-cheatsheet-32619693c304"""
 
     # calculate max activations for each layer's activations
@@ -341,16 +344,18 @@ def mb_outliers_max(out_layer_1: torch.Tensor, out_layer_2: torch.Tensor, out_la
     # pick k examples with lowest activation scores
     _, idxs = torch.topk(scores, sample_size, largest=False)
     idxs = idxs.detach().cpu().numpy()
-    
+
     return idxs
 
 
-def mb_outliers_mean_least_confidence(out_layer_1: torch.Tensor, out_layer_2: torch.Tensor, out_layer_3: torch.Tensor, sample_size: int) -> np.array:
+def mb_outliers_mean_least_confidence(
+    out_layer_1: torch.Tensor, out_layer_2: torch.Tensor, out_layer_3: torch.Tensor, sample_size: int
+) -> np.array:
     """Combined uncertainty and diversity sampling technique from https://towardsdatascience.com/advanced-active-learning-cheatsheet-d6710cba7667"""
 
     # Part 1: pre-sample with least confidence
 
-    # convert final layer to probabilities 
+    # convert final layer to probabilities
     probabilities = torch.nn.functional.softmax(out_layer_3, dim=-1)
     # get top probabilities
     max_probs = torch.max(probabilities, dim=-1)[0]
@@ -360,7 +365,7 @@ def mb_outliers_mean_least_confidence(out_layer_1: torch.Tensor, out_layer_2: to
     least_conf_scores = (num_classes * (1 - max_probs)) / (num_classes - 1)
 
     # define pre_sample_size
-    pre_sample_size = 4*sample_size
+    pre_sample_size = 4 * sample_size
     # make sure sample size doesn't exceed scores
     pre_sample_size = np.min([len(least_conf_scores), pre_sample_size])
 
@@ -387,16 +392,18 @@ def mb_outliers_mean_least_confidence(out_layer_1: torch.Tensor, out_layer_2: to
     # pick k examples with lowest activation scores
     _, idxs = torch.topk(scores, sample_size, largest=False)
     idxs = idxs.detach().cpu().numpy()
-    
+
     return idxs
 
 
-def mb_outliers_mean_entropy(out_layer_1: torch.Tensor, out_layer_2: torch.Tensor, out_layer_3: torch.Tensor, sample_size: int) -> np.array:
+def mb_outliers_mean_entropy(
+    out_layer_1: torch.Tensor, out_layer_2: torch.Tensor, out_layer_3: torch.Tensor, sample_size: int
+) -> np.array:
     """Combined uncertainty and diversity sampling technique from https://towardsdatascience.com/advanced-active-learning-cheatsheet-d6710cba7667"""
 
     # Part 1: pre-sample with least confidence
 
-    # convert final layer to probabilities 
+    # convert final layer to probabilities
     probabilities = torch.nn.functional.softmax(out_layer_3, dim=-1)
     # calculate entropy
     probslogs = probabilities * torch.log2(probabilities)
@@ -404,7 +411,7 @@ def mb_outliers_mean_entropy(out_layer_1: torch.Tensor, out_layer_2: torch.Tenso
     entropy_scores = torch.subtract(torch.zeros_like(summed), summed) / np.log2(probslogs.size()[1])
 
     # define pre_sample_size
-    pre_sample_size = 4*sample_size
+    pre_sample_size = 4 * sample_size
     # make sure sample size doesn't exceed scores
     pre_sample_size = np.min([len(entropy_scores), pre_sample_size])
 
@@ -431,19 +438,21 @@ def mb_outliers_mean_entropy(out_layer_1: torch.Tensor, out_layer_2: torch.Tenso
     # pick k examples with lowest activation scores
     _, idxs = torch.topk(scores, sample_size, largest=False)
     idxs = idxs.detach().cpu().numpy()
-    
+
     return idxs
 
 
-def mb_clustering(out_layer_1: torch.Tensor, out_layer_2: torch.Tensor, out_layer_3: torch.Tensor, sample_size: int) -> np.array:
+def mb_clustering(
+    out_layer_1: torch.Tensor, out_layer_2: torch.Tensor, out_layer_3: torch.Tensor, sample_size: int
+) -> np.array:
     """Active learning sampling technique that translates instances from the pool to features by using an internal layer of the
     learner model as featurizer, performing HDBSCAN to cluster the instances and then returning a combination of instances spread
     across all clusters and outliers detected via GLOSH.
     """
-    
+
     HDBSCAN_CLUSTER_OUTLIER_QUANTILE = 0.9
     HDBSCAN_CLUSTER_OUTLIER_FRACTION = 0.2
-    
+
     # model based featurizing
     features = out_layer_3.cpu().numpy()
 
@@ -482,17 +491,19 @@ def mb_clustering(out_layer_1: torch.Tensor, out_layer_2: torch.Tensor, out_laye
         # limit pool to current cluster only
         # NOTE: possible RuntimeWarning because of NaN values (https://github.com/scikit-learn-contrib/hdbscan/issues/374)
         cluster_idx_all = np.where(clusterer.labels_ == cluster_id)[0]
-        
+
         # divide into main points and outliers
         outlier_threshold = np.quantile(clusterer.outlier_scores_[cluster_idx_all], HDBSCAN_CLUSTER_OUTLIER_QUANTILE)
         if not (isnan(outlier_threshold) or outlier_threshold == 0):
-            regular_idx_all = np.where(clusterer.outlier_scores_[cluster_idx_all] < outlier_threshold)[0] 
+            regular_idx_all = np.where(clusterer.outlier_scores_[cluster_idx_all] < outlier_threshold)[0]
             outlier_idx_all = np.where(clusterer.outlier_scores_[cluster_idx_all] >= outlier_threshold)[0]
-        
-        # if possible cluster cannot be devided into main points and outliers, just sample randomly
+
+        #  if possible cluster cannot be devided into main points and outliers, just sample randomly
         else:
             n_cluster_points = len(cluster_idx_all)
-            outlier_idx_all = np.random.choice(range(n_cluster_points), int(n_cluster_points*HDBSCAN_CLUSTER_OUTLIER_FRACTION), replace=False)
+            outlier_idx_all = np.random.choice(
+                range(n_cluster_points), int(n_cluster_points * HDBSCAN_CLUSTER_OUTLIER_FRACTION), replace=False
+            )
             regular_idx_all = np.delete(range(n_cluster_points), outlier_idx_all)
 
         # avoid having a pool that is too small to sample from
@@ -526,18 +537,23 @@ def mb_clustering(out_layer_1: torch.Tensor, out_layer_2: torch.Tensor, out_laye
 
         all_selected_idx = np.concatenate([all_selected_idx, cluster_idx_selected])
 
-
     if len(all_selected_idx) < sample_size:
-        print(f"CAUTION: cluster_outlier_combined algorithm was not able to build a set of {sample_size} instances as requested because HDBSCAN clusters did not contain enough points.")
+        print(
+            f"CAUTION: cluster_outlier_combined algorithm was not able to build a set of {sample_size} instances as requested because HDBSCAN clusters did not contain enough points."
+        )
         print(f"Selecting {sample_size-len(all_selected_idx)} random instances additionally.")
 
         remaining_idx = np.delete(range(len(clusterer.labels_)), all_selected_idx)
-        all_selected_idx = np.concatenate([all_selected_idx, np.random.choice(remaining_idx, sample_size-len(all_selected_idx), replace=False)])
+        all_selected_idx = np.concatenate(
+            [all_selected_idx, np.random.choice(remaining_idx, sample_size - len(all_selected_idx), replace=False)]
+        )
 
     return all_selected_idx
 
 
-def mb_outliers_glosh(out_layer_1: torch.Tensor, out_layer_2: torch.Tensor, out_layer_3: torch.Tensor, sample_size: int) -> np.array:
+def mb_outliers_glosh(
+    out_layer_1: torch.Tensor, out_layer_2: torch.Tensor, out_layer_3: torch.Tensor, sample_size: int
+) -> np.array:
     """Active learning sampling technique that translates instances from the pool to features by using an internal layer of the
     model as featurizer, performing HDBSCAN to cluster the instances and then returning the outliers based on their GLOSH score.
     """
@@ -553,7 +569,7 @@ def mb_outliers_glosh(out_layer_1: torch.Tensor, out_layer_2: torch.Tensor, out_
 
     # select indices with highest outlier scores and return them
     # NOTE: prints a RuntimeWarning sometimes because of NaN values (https://github.com/scikit-learn-contrib/hdbscan/issues/374)
-    idx = np.argsort(-clusterer.outlier_scores_)[:sample_size] 
+    idx = np.argsort(-clusterer.outlier_scores_)[:sample_size]
     return idx
 
 
@@ -566,6 +582,9 @@ def _hdbscan_cluster_instances(features):
 
     # perform clustering
     n_clusters = -1
+
+    min_cluster_size = HDBSCAN_MIN_CLUSTER_SIZE
+
     while n_clusters < 1:
         clusterer = hdbscan.HDBSCAN(min_cluster_size=HDBSCAN_MIN_CLUSTER_SIZE, min_samples=1).fit(features)
         n_clusters = clusterer.labels_.max() + 1

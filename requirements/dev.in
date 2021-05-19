@@ -2,7 +2,9 @@
 bandit
 black
 editdistance
+flake8
 itermplot
+isort
 jupyterlab
 matplotlib
 mypy
@@ -10,6 +12,7 @@ nltk
 pycodestyle
 pydocstyle
 pylint
+pyproject-flake8
 pytest
 pyyaml
 tornado
